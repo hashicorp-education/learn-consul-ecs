@@ -7,8 +7,8 @@ resource "aws_ecs_task_definition" "example_client_app" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
   memory                   = "512"
-  #port              = "9090"
-  #log_configuration = local.example_client_app_log_config
+  #port                    = "9090"
+  #log_configuration       = local.example_client_app_log_config
 
   container_definitions = jsonencode([
     {
@@ -50,8 +50,8 @@ resource "aws_ecs_task_definition" "example_server_app" {
   memory                   = "512"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
-  #port              = "9090"
-  #log_configuration = local.example_server_app_log_config
+  #port                    = "9090"
+  #log_configuration       = local.example_server_app_log_config
   
   container_definitions = jsonencode([
     {
