@@ -1,5 +1,5 @@
 data "kubectl_filename_list" "hashicups_manifests" {
-  pattern = "${path.module}/hashicups/*.yaml"
+  pattern = "${path.module}/hashicups-eks/*.yaml"
 }
 
 resource "kubectl_manifest" "hashicups" {

@@ -33,7 +33,7 @@ variable "chart_version" {
 variable "api_gateway_version" {
   type        = string
   description = "The Consul API gateway CRD version to use"
-  default     = "0.5.1"
+  default     = "0.5.4"
 }
 
 variable "datacenter" {

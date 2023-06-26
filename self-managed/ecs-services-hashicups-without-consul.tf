@@ -1,9 +1,8 @@
-/*
-# Public API service
-resource "aws_ecs_service" "hashicups_public_api_service" {
-  name            = "${var.name}-hashicups_public_api_service"
+# Payments API service
+resource "aws_ecs_service" "payment_api" {
+  name            = "payment_api"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = aws_ecs_task_definition.hashicups_public_api_task.arn
+  task_definition = aws_ecs_task_definition.hashicups_payments_api_task.arn
   desired_count   = 1
   network_configuration {
     subnets = module.vpc.private_subnets
@@ -12,7 +11,7 @@ resource "aws_ecs_service" "hashicups_public_api_service" {
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
 }
-*/
+
 
 # Product API service
 resource "aws_ecs_service" "hashicups_product_api_service" {

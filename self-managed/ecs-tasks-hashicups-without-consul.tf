@@ -1,59 +1,31 @@
-
-/*
-
-# Public API task defintion without Consul
-resource "aws_ecs_task_definition" "hashicups_public_api_task" {
-  family                   = "${var.name}-hashicups_public_api_task"
+resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
+  family                   = "payments_api"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
   memory                   = "512"
-  #port                    = "9090"
-  #log_configuration       = local.example_client_app_log_config
 
   container_definitions = jsonencode([
     {
-    name             = "public-api"
-    image            = "hashicorpdemoapp/public-api:v0.0.7"
-    essential        = true
-    logConfiguration = local.example_client_app_log_config
-    environment = [
-      {
-        name  = "NAME"
-        value = "public-api"
-      },
-      {
-        name  = "BIND_ADDRESS"
-        value = ":8080"
-      },
-      {
-        name  = "PRODUCT_API_URI"
-        value = "http://localhost:9090"
-      },
-      {
-        name  = "PAYMENT_API_URI"
-        value = "http://localhost:1800"
-      }     
-    ]
-    portMappings = [
-      {
-        containerPort = 8080
-        hostPort      = 8080
-        protocol      = "tcp"
-      }
-    ]
-    cpu         = 10
-    memory      = 512
-    mountPoints = []
-    volumesFrom = []
+      name      = "payments_api"
+      image     = "hashicorpdemoapp/payments:v0.0.16"
+      essential = true
+      logConfiguration = local.payments_api_log_config
+
+      portMappings = [
+        {
+          containerPort = 8080
+          protocol      = "tcp"
+        }
+      ]
+
+      mountPoints = []
+      volumesFrom = []
     }
   ])
 }
-
-*/
-
 
 # Product API task defintion without Consul
 resource "aws_ecs_task_definition" "hashicups_product_api_task" {
@@ -64,8 +36,6 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
   memory                   = "512"
-  #port                    = "9090"
-  #log_configuration       = local.example_client_app_log_config
 
   container_definitions = jsonencode([
     {
@@ -79,9 +49,17 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
         value = "product-api"
       },
       {
-        name  = "CONFIG_FILE"
-        value = "/config/conf.json"
-      }     
+        name  = "DB_CONNECTION"
+        value = "host=localhost port=5432 user=postgres password=password dbname=products sslmode=disable"
+      },
+      {
+        name  = "BIND_ADDRESS"
+        value = "localhost:9090"
+      },
+      {
+        name  = "METRICS_ADDRESS"
+        value = "localhost:9103"
+      }
     ]
     portMappings = [
       {
@@ -95,11 +73,9 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
         protocol      = "tcp"
       }
     ]
-    cpu         = 10
     memory      = 512
-    command     = ["/bin/sh -c \"echo '{\"db_connection\": \"host=localhost port=5432 user=postgres password=password dbname=products sslmode=disable\", \"bind_address\": \":9090\", \"metrics_address\": \":9103\"}' >> /config/conf.json"]
-
-    mountPoints = []
+    mountPoints = [
+    ]
     volumesFrom = []
     }
   ])
@@ -115,8 +91,6 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
   memory                   = "512"
-  #port                    = "9090"
-  #log_configuration       = local.example_client_app_log_config
 
   container_definitions = jsonencode([
     {
@@ -149,7 +123,6 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
         protocol      = "tcp"
       }
     ]
-    cpu         = 10
     memory      = 512
     mountPoints = [
       {
@@ -163,4 +136,39 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
   volume {
     name      = "pgdata"
   }
+}
+
+
+resource "aws_cloudwatch_log_group" "log_group" {
+  name = var.name
+}
+
+locals {
+  example_server_app_log_config = {
+    logDriver = "awslogs"
+    options = {
+      awslogs-group         = aws_cloudwatch_log_group.log_group.name
+      awslogs-region        = var.vpc_region
+      awslogs-stream-prefix = "server_app"
+    }
+  }
+
+  example_client_app_log_config = {
+    logDriver = "awslogs"
+    options = {
+      awslogs-group         = aws_cloudwatch_log_group.log_group.name
+      awslogs-region        = var.vpc_region
+      awslogs-stream-prefix = "client_app"
+    }
+  }
+
+  payments_api_log_config = {
+    logDriver = "awslogs"
+    options = {
+      awslogs-group         = aws_cloudwatch_log_group.log_group.name
+      awslogs-region        = var.vpc_region
+      awslogs-stream-prefix = "payments"
+    }
+  }
+
 }
