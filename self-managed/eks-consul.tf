@@ -22,6 +22,35 @@ resource "helm_release" "consul" {
   depends_on = [module.eks.eks_managed_node_groups, kubernetes_namespace.consul, kustomization_resource.gateway_crds]
 }
 
+/*
+data "kubernetes_service" "consul_server" {
+  metadata {
+    name = "consul-server"
+  }
+}
+
+value = [data.kubernetes_service.example.status.0.load_balancer.0.ingress.0.hostname]
+
+# Get Consul server URL and store as a Terraform variable/output
+export CONSUL_HTTP_TOKEN=$(kubectl get --namespace consul secrets/consul-bootstrap-acl-token --template={{.data.token}} | base64 -d)
+export CONSUL_HTTP_ADDR=https://$(kubectl get services/consul-ui --namespace consul -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+export CONSUL_HTTP_SSL_VERIFY=false
+
+
+
+data "kubernetes_service" "consul_api_gateway" {
+  metadata {
+    name = "api-gateway"
+  }
+}
+value = [data.kubernetes_service.example.status.0.load_balancer.0.ingress.0.hostname]
+
+# Get Consul API Gateway URL and store as a Terraform variable/output
+export CONSUL_APIGW_ADDR=http://$(kubectl get svc/api-gateway --namespace consul -o json | jq -r '.status.loadBalancer.ingress[0].hostname'):8080
+
+*/
+
+
 ## Apply API Gateway CRDs
 
 locals {
@@ -84,5 +113,5 @@ resource "kubectl_manifest" "api_gw" {
   count     = length(data.kubectl_filename_list.api_gw_manifests.matches)
   yaml_body = file(element(data.kubectl_filename_list.api_gw_manifests.matches, count.index))
 
-  depends_on = [helm_release.consul, kustomization_resource.gateway_crds]
+  depends_on = [helm_release.consul, kustomization_resource.gateway_crds, kubectl_manifest.hashicups]
 }

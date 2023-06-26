@@ -17,13 +17,17 @@ output "vpc" {
 # EKS Cluster
 ################################################################################
 
-/*
 output "kubernetes_cluster_endpoint" {
   value = data.aws_eks_cluster.cluster.endpoint
 }
 
 output "kubernetes_cluster_id" {
   value = local.name
+}
+
+/*
+output "consul_server_address" {
+  value = "https://${aws_lb.example_client_app.dns_name}:8502"
 }
 */
 

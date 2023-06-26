@@ -1,3 +1,47 @@
+# Payments API service
+resource "aws_ecs_service" "payments_api" {
+  name            = "payments_api"
+  cluster         = aws_ecs_cluster.ecs_cluster.arn
+  task_definition = aws_ecs_task_definition.hashicups_payments_api_task.arn
+  desired_count   = 1
+  network_configuration {
+    subnets = module.vpc.private_subnets
+  }
+  launch_type            = "FARGATE"
+  propagate_tags         = "TASK_DEFINITION"
+  enable_execute_command = true
+}
+
+
+# Product API service
+resource "aws_ecs_service" "hashicups_product_api_service" {
+  name            = "${var.name}-hashicups_product_api_service"
+  cluster         = aws_ecs_cluster.ecs_cluster.arn
+  task_definition = aws_ecs_task_definition.hashicups_product_api_task.arn
+  desired_count   = 1
+  network_configuration {
+    subnets = module.vpc.private_subnets
+  }
+  launch_type            = "FARGATE"
+  propagate_tags         = "TASK_DEFINITION"
+  enable_execute_command = true
+}
+
+# Product API DB service
+resource "aws_ecs_service" "hashicups_product_api_db_service" {
+  name            = "${var.name}-hashicups_product_api_db_service"
+  cluster         = aws_ecs_cluster.ecs_cluster.arn
+  task_definition = aws_ecs_task_definition.hashicups_product_api_db_task.arn
+  desired_count   = 1
+  network_configuration {
+    subnets = module.vpc.private_subnets
+  }
+  launch_type            = "FARGATE"
+  propagate_tags         = "TASK_DEFINITION"
+  enable_execute_command = true
+}
+
+
 resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
   family                   = "payments_api"
   network_mode             = "awsvpc"
@@ -42,7 +86,7 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
     name             = "product-api"
     image            = "hashicorpdemoapp/product-api:v0.0.22"
     essential        = true
-    logConfiguration = local.example_client_app_log_config
+    logConfiguration = local.product_api_log_config
     environment = [
       {
         name  = "NAME"
@@ -82,7 +126,7 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
 }
 
 
-# Public API DB task defintion without Consul
+# Product API DB task defintion without Consul
 resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
   family                   = "${var.name}-hashicups_product_api_db_task"
   network_mode             = "awsvpc"
@@ -94,10 +138,10 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
 
   container_definitions = jsonencode([
     {
-    name             = "public-api-db"
+    name             = "product-api-db"
     image            = "hashicorpdemoapp/product-api-db:v0.0.22"
     essential        = true
-    logConfiguration = local.example_client_app_log_config
+    logConfiguration = local.product_api_db_log_config
     environment = [
       {
         name  = "NAME"
@@ -144,21 +188,21 @@ resource "aws_cloudwatch_log_group" "log_group" {
 }
 
 locals {
-  example_server_app_log_config = {
+  product_api_log_config = {
     logDriver = "awslogs"
     options = {
       awslogs-group         = aws_cloudwatch_log_group.log_group.name
       awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "server_app"
+      awslogs-stream-prefix = "product_api"
     }
   }
 
-  example_client_app_log_config = {
+  product_api_db_log_config = {
     logDriver = "awslogs"
     options = {
       awslogs-group         = aws_cloudwatch_log_group.log_group.name
       awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "client_app"
+      awslogs-stream-prefix = "product_api_db"
     }
   }
 

@@ -63,7 +63,7 @@ provider "registry.terraform.io/hashicorp/cloudinit" {
 
 provider "registry.terraform.io/hashicorp/helm" {
   version     = "2.10.1"
-  constraints = ">= 2.3.0"
+  constraints = ">= 2.10.1"
   hashes = [
     "h1:OFRsk+lMoRoNoJjJzRngH8hAq++Sb6LwrEKIjd7PeWA=",
     "zh:0717312baed39fb0a00576297241b69b419880cad8771bf72dec97ebdc96b200",

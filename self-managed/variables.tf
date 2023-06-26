@@ -21,7 +21,7 @@ variable "vpc_region" {
 variable "consul_version" {
   type        = string
   description = "The Consul version"
-  default     = "v1.16.0"
+  default     = "1.16.0-rc1"
 }
 
 variable "chart_version" {
@@ -42,6 +42,24 @@ variable "datacenter" {
   default     = "dc1"
 }
 
+################################################################################
+# ECS
+################################################################################
+
+variable "CONSUL_HTTP_TOKEN" {
+  type        = string
+  description = "Your Consul ACL token with required permissions."
+}
+
+variable "CONSUL_HTTP_ADDR" {
+  type        = string
+  description = "Your Consul HTTP(S) address"
+}
+
+variable "CONSUL_CA_CERT" {
+  type        = string
+  description = "The path to your Consul CA certificate."
+}
 
 ################################################################################
 # Other
