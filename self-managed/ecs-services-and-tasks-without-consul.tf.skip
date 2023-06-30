@@ -182,11 +182,6 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
   }
 }
 
-
-resource "aws_cloudwatch_log_group" "log_group" {
-  name = var.name
-}
-
 locals {
   product_api_log_config = {
     logDriver = "awslogs"

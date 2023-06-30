@@ -1,6 +1,7 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
+
 module "acl-controller" {
   source  = "hashicorp/consul-ecs/aws//modules/acl-controller"
   version = "0.6.0"
@@ -18,55 +19,34 @@ module "acl-controller" {
   ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
   region                    = var.vpc_region
   subnets                   = module.vpc.private_subnets
-  consul_server_http_addr   = "https://${var.CONSUL_HTTP_ADDR}:8501"
+
   consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn
-  consul_server_ca_cert_arn         = aws_secretsmanager_secret.consul_ca_cert.arn
+  #consul_server_ca_cert_arn         = aws_secretsmanager_secret.ca_cert.arn
+  #consul_server_http_addr           = "https://10.0.4.242:8501"
+  consul_server_http_addr           = "10.0.4.254:8500"
+  #consul_server_http_addr           = "https://${aws_instance.consul.private_ip}:8501"
+  #consul_server_http_addr           = "http://${module.eks.eks_managed_node_groups.private_ip}:8500"
+
   launch_type               = "FARGATE"
 
-  depends_on = [ aws_secretsmanager_secret.bootstrap_token, aws_secretsmanager_secret.consul_ca_cert ]
+  depends_on = [ aws_secretsmanager_secret.bootstrap_token, aws_secretsmanager_secret.ca_cert ]
 }
 
-resource "aws_iam_role" "payment-api-task-role" {
-  name = "payment_api_${var.name}_task_role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
+/*
+data "kubernetes_service" "consul_server" {
+  metadata {
+    name = "consul-server"
+  }
 
-resource "aws_iam_role" "payment-api-execution-role" {
-  name = "payment_api_${var.name}_execution_role"
-  path = "/ecs/"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
+    records = [data.kubernetes_service.consul_server.status.0.load_balancer.0.ingress.0.hostname]
 }
+*/
 
 module "payment-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
   family         = "payment-api"
-  task_role      = aws_iam_role.payment-api-task-role
-  execution_role = aws_iam_role.payment-api-execution-role
   container_definitions = [
     {
       name      = "payment-api"
@@ -105,15 +85,19 @@ module "payment-api" {
 
   port = local.payment_api_port
 
-  retry_join        = [var.CONSUL_HTTP_ADDR]
+  retry_join        = ["10.0.4.254"]
+  #retry_join       = [aws_instance.consul.private_ip]
   consul_datacenter = var.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
 
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.consul_ca_cert.arn
+  #tls                       = true
+  #consul_server_ca_cert_arn = aws_secretsmanager_secret.server_cert.arn
+  #consul_https_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
 
   acls                      = true
-  consul_http_addr   = "https://${var.CONSUL_HTTP_ADDR}:8501"
+  #consul_http_addr          = "https://10.0.4.242:8501"
+  consul_http_addr          = "http://10.0.4.254:8500"
+
 }
 
 resource "aws_ecs_service" "payment-api" {
@@ -132,47 +116,13 @@ resource "aws_ecs_service" "payment-api" {
   enable_execute_command = true
 }
 
-resource "aws_iam_role" "product-api-task-role" {
-  name = "product_api_${var.name}_task_role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role" "product-api-execution-role" {
-  name = "product_api_${var.name}_execution_role"
-  path = "/ecs/"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
 module "product-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
   family         = "product-api"
-  task_role      = aws_iam_role.product-api-task-role
-  execution_role = aws_iam_role.product-api-execution-role
+  #task_role      = aws_iam_role.product-api-task-role
+  #execution_role = aws_iam_role.product-api-execution-role
   container_definitions = [
     {
       name      = "product-api"
@@ -228,15 +178,20 @@ module "product-api" {
 
   port = local.product_api_port
 
-  retry_join        = [var.CONSUL_HTTP_ADDR]
+  #retry_join        = ["https://10.0.4.242:8501"]
+  retry_join        = ["10.0.4.254"]
+  #retry_join       = [aws_instance.consul.private_ip]
   consul_datacenter = var.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
 
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.consul_ca_cert.arn
+  #tls                       = true
+  #consul_server_ca_cert_arn = aws_secretsmanager_secret.server_cert.arn
+  #consul_https_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
 
   acls                           = true
-  consul_http_addr   = "https://${var.CONSUL_HTTP_ADDR}:8501"
+  #consul_http_addr          = "https://10.0.4.242:8501"
+  consul_http_addr          = "http://10.0.4.254:8500"
+
 }
 
 resource "aws_ecs_service" "product-api" {
@@ -255,6 +210,7 @@ resource "aws_ecs_service" "product-api" {
   enable_execute_command = true
 }
 
+/*
 resource "aws_iam_role" "product-db-task-role" {
   name = "product_db_${var.name}_task_role"
   assume_role_policy = jsonencode({
@@ -288,14 +244,15 @@ resource "aws_iam_role" "product-db-execution-role" {
     ]
   })
 }
+*/
 
 module "product-db" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
   family         = "product-db"
-  task_role      = aws_iam_role.product-db-task-role
-  execution_role = aws_iam_role.product-db-execution-role
+  #task_role      = aws_iam_role.product-db-task-role
+  #execution_role = aws_iam_role.product-db-execution-role
   container_definitions = [
     {
       name      = "product-db"
@@ -348,15 +305,19 @@ module "product-db" {
 
   port = local.product_db_port
 
-  retry_join        = [var.CONSUL_HTTP_ADDR]
+  #retry_join        = ["https://10.0.4.242:8501"]
+  retry_join        = ["10.0.4.254"]
+  #retry_join       = [aws_instance.consul.private_ip]
   consul_datacenter = var.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
 
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.consul_ca_cert.arn
+  #tls                       = true
+  #consul_server_ca_cert_arn = aws_secretsmanager_secret.server_cert.arn
+  #consul_https_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
 
   acls                           = true
-  consul_http_addr   = "https://${var.CONSUL_HTTP_ADDR}:8501"
+  #consul_http_addr          = "https://10.0.4.242:8501"
+  consul_http_addr          = "http://10.0.4.254:8500"
 }
 
 resource "aws_ecs_service" "product-db" {

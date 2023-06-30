@@ -1,8 +1,83 @@
+//Consul namespace
 resource "kubernetes_namespace" "consul" {
   metadata {
     name = "consul"
   }
 }
+
+
+
+//Generated Kubernetes secrets
+resource "kubernetes_secret" "consul_bootstrap_token" {
+  metadata {
+    name = "bootstrap-token"
+    namespace = "consul"
+  }
+
+  data = {
+    token = "${data.aws_secretsmanager_secret_version.bootstrap_token.secret_string}"
+  }
+
+  depends_on = [module.eks.eks_managed_node_groups, 
+                kubernetes_namespace.consul
+               ]
+
+}
+
+/*
+
+resource "kubernetes_secret" "consul_ca_key" {
+  metadata {
+    name = "ca-key"
+    namespace = "consul"
+  }
+
+  data = {
+    "tls.key" = "${data.aws_secretsmanager_secret_version.ca_key.secret_string}"
+  }
+
+  depends_on = [module.eks.eks_managed_node_groups, 
+                kubernetes_namespace.consul
+               ]
+
+}
+
+resource "kubernetes_secret" "consul_ca_cert" {
+  metadata {
+    name = "ca-cert"
+    namespace = "consul"
+  }
+
+  data = {
+    "tls.crt" = "${data.aws_secretsmanager_secret_version.ca_cert.secret_string}"
+    
+  }
+
+  depends_on = [module.eks.eks_managed_node_groups, 
+                kubernetes_namespace.consul
+               ]
+
+}
+
+resource "kubernetes_secret" "consul_server_cert" {
+  metadata {
+    name = "server-cert"
+    namespace = "consul"
+  }
+
+  data = {
+    "tls.crt" = "${data.aws_secretsmanager_secret_version.server_cert.secret_string}"
+    "tls.key" = "${data.aws_secretsmanager_secret_version.server_key.secret_string}"
+  }
+
+  type = "kubernetes.io/tls"
+
+  depends_on = [module.eks.eks_managed_node_groups, 
+                kubernetes_namespace.consul
+               ]
+
+}
+*/
 
 resource "helm_release" "consul" {
   name       = "consul"
@@ -16,10 +91,16 @@ resource "helm_release" "consul" {
       datacenter       = var.datacenter
       consul_version   = substr(var.consul_version, 1, -1)
       api_gateway_version = var.api_gateway_version
+
     })
   ]
 
-  depends_on = [module.eks.eks_managed_node_groups, kubernetes_namespace.consul, kustomization_resource.gateway_crds]
+  depends_on = [module.eks.eks_managed_node_groups, 
+                kubernetes_namespace.consul, 
+                aws_secretsmanager_secret.bootstrap_token, 
+                aws_secretsmanager_secret.ca_cert, 
+                aws_secretsmanager_secret.ca_key
+                ]
 }
 
 /*
@@ -94,6 +175,9 @@ provider "kustomization" {
   context        = local.kubeconfig_context
 }
 
+/* no longer need to install CRDs in Consul 1.16? 
+still looks like we do though..
+*/
 data "kustomization_build" "gateway_crds" {
   path = "github.com/hashicorp/consul-api-gateway/config/crd?ref=v${var.api_gateway_version}"
 }
@@ -102,6 +186,7 @@ resource "kustomization_resource" "gateway_crds" {
   for_each = data.kustomization_build.gateway_crds.ids
   manifest = data.kustomization_build.gateway_crds.manifests[each.value]
 }
+
 
 ## Create API Gateway
 
@@ -113,5 +198,5 @@ resource "kubectl_manifest" "api_gw" {
   count     = length(data.kubectl_filename_list.api_gw_manifests.matches)
   yaml_body = file(element(data.kubectl_filename_list.api_gw_manifests.matches, count.index))
 
-  depends_on = [helm_release.consul, kustomization_resource.gateway_crds, kubectl_manifest.hashicups]
+  depends_on = [helm_release.consul, kubectl_manifest.hashicups]
 }

@@ -32,3 +32,4 @@ override.tf.json
 kubeconfig_*
 *_config
 *.mdx
+ca.crt

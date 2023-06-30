@@ -21,7 +21,7 @@ variable "vpc_region" {
 variable "consul_version" {
   type        = string
   description = "The Consul version"
-  default     = "1.16.0-rc1"
+  default     = "1.16.0"
 }
 
 variable "chart_version" {
@@ -46,6 +46,7 @@ variable "datacenter" {
 # ECS
 ################################################################################
 
+/*
 variable "CONSUL_HTTP_TOKEN" {
   type        = string
   description = "Your Consul ACL token with required permissions."
@@ -56,10 +57,16 @@ variable "CONSUL_HTTP_ADDR" {
   description = "Your Consul HTTP(S) address"
 }
 
+variable "CONSUL_SERVER_CA_CERT" {
+  type        = string
+  description = "The path to your Consul server CA certificate."
+}
+
 variable "CONSUL_CA_CERT" {
   type        = string
-  description = "The path to your Consul CA certificate."
+  description = "The path to your Consul HTTPS CA certificate."
 }
+*/
 
 ################################################################################
 # Other
@@ -75,8 +82,10 @@ locals {
   name = "${var.name}-${random_string.suffix.result}"
 }
 
+/*
 variable "consul_cluster_addr" {
   type        = string
   description = "The network address of your Consul cluster."
   default = "https://dc1.private.consul.98a0dcc3-5473-4e4d-a28e-6c343c498530.aws.hashicorp.cloud"
 }
+*/
