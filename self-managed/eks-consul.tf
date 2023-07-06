@@ -24,7 +24,7 @@ resource "kubernetes_secret" "consul_bootstrap_token" {
 
 }
 
-/*
+
 
 resource "kubernetes_secret" "consul_ca_key" {
   metadata {
@@ -77,7 +77,7 @@ resource "kubernetes_secret" "consul_server_cert" {
                ]
 
 }
-*/
+
 
 resource "helm_release" "consul" {
   name       = "consul"
@@ -99,7 +99,8 @@ resource "helm_release" "consul" {
                 kubernetes_namespace.consul, 
                 aws_secretsmanager_secret.bootstrap_token, 
                 aws_secretsmanager_secret.ca_cert, 
-                aws_secretsmanager_secret.ca_key
+                aws_secretsmanager_secret.ca_key,
+                aws_secretsmanager_secret.server_cert
                 ]
 }
 

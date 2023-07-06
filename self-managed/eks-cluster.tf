@@ -50,6 +50,14 @@ module "eks" {
       type                          = "ingress"
       source_cluster_security_group = true
     }
+    ingress_consul = {
+      description = "Ingress to Consul ports/protocols"
+      protocol    = "-1"
+      from_port   = 8500
+      to_port     = 8500
+      type        = "ingress"
+      cidr_blocks      = ["10.0.0.0/16"]
+    }
     egress_all = {
       description      = "Node all egress"
       protocol         = "-1"

@@ -10,16 +10,13 @@ global:
   datacenter: ${datacenter}
   tls:
     enabled: false
-    #enableAutoEncrypt: true
-    #verify: true
-    #serverAdditionalDNSSANs: ["*.amazonaws.com", "*"]
-    #serverAdditionalIPSANs: ["*"]
-    #caCert:
-      #secretName: ca-cert
-      #secretKey: tls.crt
-    #caKey:
-      #secretName: ca-key
-      #secretKey: tls.key
+    enableAutoEncrypt: true
+    caCert:
+      secretName: ca-cert
+      secretKey: tls.crt
+    caKey:
+      secretName: ca-key
+      secretKey: tls.key
   acls:
     manageSystemACLs: true
     bootstrapToken:
@@ -34,24 +31,10 @@ server:
   exposeService:
     # When enabled, deploys a Kubernetes Service to reach the Consul servers.
     enabled: true
-    # Type of service, supports LoadBalancer or NodePort.
     type: NodePort
-    # If service is of type NodePort, configures the nodePorts.
-    #nodePort:
-      # Configures the nodePort to expose the Consul server http port.
-      #http: 8500
-      # Configures the nodePort to expose the Consul server https port.
-      # @type: integer
-      #https: null
-      # Configures the nodePort to expose the Consul server serf port.
-      # @type: integer
-      #serf: null
-      # Configures the nodePort to expose the Consul server rpc port.
-      # @type: integer
-      #rpc: null
-      # Configures the nodePort to expose the Consul server grpc port.
-      # @type: integer
-      #grpc: null
+    nodePort:
+      http: 32500
+      serf: 32301
 connectInject:
   enabled: true
 ui:

@@ -49,11 +49,6 @@ resource "tls_self_signed_cert" "ca" {
     "crl_signing",
   ]
 
-  dns_names = [
-   "*.elb.amazonaws.com",
-   "*.amazonaws.com"
-  ]
-
 }
 
 resource "aws_secretsmanager_secret" "ca_key" {
@@ -67,11 +62,12 @@ resource "aws_secretsmanager_secret_version" "ca_key" {
   secret_string = tls_private_key.ca.private_key_pem
 }
 
-/*
+
 data "aws_secretsmanager_secret_version" "ca_key" {
   secret_id = aws_secretsmanager_secret.ca_key.id
+  depends_on = [aws_secretsmanager_secret_version.ca_key]
 }
-*/
+
 
 resource "aws_secretsmanager_secret" "ca_cert" {
   #count = var.tls ? 1 : 0
@@ -84,11 +80,11 @@ resource "aws_secretsmanager_secret_version" "ca_cert" {
   secret_string = tls_self_signed_cert.ca.cert_pem
 }
 
-/*
 data "aws_secretsmanager_secret_version" "ca_cert" {
   secret_id = aws_secretsmanager_secret.ca_cert.id
+  depends_on = [aws_secretsmanager_secret_version.ca_cert]
 }
-*/
+
 
 ## Server cert
 
@@ -149,11 +145,10 @@ resource "aws_secretsmanager_secret_version" "server_key" {
   secret_string = tls_private_key.server_ca.private_key_pem
 }
 
-/*
 data "aws_secretsmanager_secret_version" "server_key" {
   secret_id = aws_secretsmanager_secret.server_key.id
+  depends_on = [aws_secretsmanager_secret_version.server_key]
 }
-*/
 
 resource "aws_secretsmanager_secret" "server_cert" {
   #count = var.tls ? 1 : 0
@@ -166,8 +161,7 @@ resource "aws_secretsmanager_secret_version" "server_cert" {
   secret_string = tls_self_signed_cert.server_ca.cert_pem
 }
 
-/*
 data "aws_secretsmanager_secret_version" "server_cert" {
   secret_id = aws_secretsmanager_secret.server_cert.id
+  depends_on = [aws_secretsmanager_secret_version.server_cert]
 }
-*/
