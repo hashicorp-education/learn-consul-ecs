@@ -53,8 +53,8 @@ module "eks" {
     ingress_consul = {
       description = "Ingress to Consul ports/protocols"
       protocol    = "-1"
-      from_port   = 8500
-      to_port     = 8500
+      from_port   = 0
+      to_port     = 0
       type        = "ingress"
       cidr_blocks      = ["10.0.0.0/16"]
     }

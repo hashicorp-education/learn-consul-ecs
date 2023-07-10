@@ -5,8 +5,6 @@ resource "kubernetes_namespace" "consul" {
   }
 }
 
-
-
 //Generated Kubernetes secrets
 resource "kubernetes_secret" "consul_bootstrap_token" {
   metadata {
@@ -23,8 +21,6 @@ resource "kubernetes_secret" "consul_bootstrap_token" {
                ]
 
 }
-
-
 
 resource "kubernetes_secret" "consul_ca_key" {
   metadata {
@@ -59,26 +55,6 @@ resource "kubernetes_secret" "consul_ca_cert" {
 
 }
 
-resource "kubernetes_secret" "consul_server_cert" {
-  metadata {
-    name = "server-cert"
-    namespace = "consul"
-  }
-
-  data = {
-    "tls.crt" = "${data.aws_secretsmanager_secret_version.server_cert.secret_string}"
-    "tls.key" = "${data.aws_secretsmanager_secret_version.server_key.secret_string}"
-  }
-
-  type = "kubernetes.io/tls"
-
-  depends_on = [module.eks.eks_managed_node_groups, 
-                kubernetes_namespace.consul
-               ]
-
-}
-
-
 resource "helm_release" "consul" {
   name       = "consul"
   repository = "https://helm.releases.hashicorp.com"
@@ -90,8 +66,6 @@ resource "helm_release" "consul" {
     templatefile("${path.module}/consul-helm/values.tpl", {
       datacenter       = var.datacenter
       consul_version   = substr(var.consul_version, 1, -1)
-      api_gateway_version = var.api_gateway_version
-
     })
   ]
 
@@ -99,45 +73,13 @@ resource "helm_release" "consul" {
                 kubernetes_namespace.consul, 
                 aws_secretsmanager_secret.bootstrap_token, 
                 aws_secretsmanager_secret.ca_cert, 
-                aws_secretsmanager_secret.ca_key,
-                aws_secretsmanager_secret.server_cert
+                aws_secretsmanager_secret.ca_key
                 ]
 }
 
-/*
-data "kubernetes_service" "consul_server" {
-  metadata {
-    name = "consul-server"
-  }
-}
-
-value = [data.kubernetes_service.example.status.0.load_balancer.0.ingress.0.hostname]
-
-# Get Consul server URL and store as a Terraform variable/output
-export CONSUL_HTTP_TOKEN=$(kubectl get --namespace consul secrets/consul-bootstrap-acl-token --template={{.data.token}} | base64 -d)
-export CONSUL_HTTP_ADDR=https://$(kubectl get services/consul-ui --namespace consul -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-export CONSUL_HTTP_SSL_VERIFY=false
-
-
-
-data "kubernetes_service" "consul_api_gateway" {
-  metadata {
-    name = "api-gateway"
-  }
-}
-value = [data.kubernetes_service.example.status.0.load_balancer.0.ingress.0.hostname]
-
-# Get Consul API Gateway URL and store as a Terraform variable/output
-export CONSUL_APIGW_ADDR=http://$(kubectl get svc/api-gateway --namespace consul -o json | jq -r '.status.loadBalancer.ingress[0].hostname'):8080
-
-*/
-
-
-## Apply API Gateway CRDs
-
 locals {
   # non-default context name to protect from using wrong kubeconfig
-  kubeconfig_context = "_terraform-kustomization-${local.name}_"
+  kubeconfig_context = "_terraform-kubectl-context-${local.name}_"
 
   kubeconfig = {
     apiVersion = "v1"
@@ -170,24 +112,6 @@ locals {
     ]
   }
 }
-
-provider "kustomization" {
-  kubeconfig_raw = yamlencode(local.kubeconfig)
-  context        = local.kubeconfig_context
-}
-
-/* no longer need to install CRDs in Consul 1.16? 
-still looks like we do though..
-*/
-data "kustomization_build" "gateway_crds" {
-  path = "github.com/hashicorp/consul-api-gateway/config/crd?ref=v${var.api_gateway_version}"
-}
-
-resource "kustomization_resource" "gateway_crds" {
-  for_each = data.kustomization_build.gateway_crds.ids
-  manifest = data.kustomization_build.gateway_crds.manifests[each.value]
-}
-
 
 ## Create API Gateway
 

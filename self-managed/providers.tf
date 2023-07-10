@@ -51,3 +51,10 @@ provider "kubectl" {
   token                  = data.aws_eks_cluster_auth.cluster.token
   load_config_file       = false
 }
+
+/*
+provider "kustomization" {
+  kubeconfig_raw = yamlencode(local.kubeconfig)
+  context        = local.kubeconfig_context
+}
+*/

@@ -27,13 +27,7 @@ variable "consul_version" {
 variable "chart_version" {
   type        = string
   description = "The Consul Helm chart version to use"
-  default     = "1.1.2"
-}
-
-variable "api_gateway_version" {
-  type        = string
-  description = "The Consul API gateway CRD version to use"
-  default     = "0.5.4"
+  default     = "1.2.0"
 }
 
 variable "datacenter" {
@@ -41,32 +35,6 @@ variable "datacenter" {
   description = "The name of the Consul datacenter that client agents should register as"
   default     = "dc1"
 }
-
-################################################################################
-# ECS
-################################################################################
-
-/*
-variable "CONSUL_HTTP_TOKEN" {
-  type        = string
-  description = "Your Consul ACL token with required permissions."
-}
-
-variable "CONSUL_HTTP_ADDR" {
-  type        = string
-  description = "Your Consul HTTP(S) address"
-}
-
-variable "CONSUL_SERVER_CA_CERT" {
-  type        = string
-  description = "The path to your Consul server CA certificate."
-}
-
-variable "CONSUL_CA_CERT" {
-  type        = string
-  description = "The path to your Consul HTTPS CA certificate."
-}
-*/
 
 ################################################################################
 # Other
@@ -81,11 +49,3 @@ resource "random_string" "suffix" {
 locals {
   name = "${var.name}-${random_string.suffix.result}"
 }
-
-/*
-variable "consul_cluster_addr" {
-  type        = string
-  description = "The network address of your Consul cluster."
-  default = "https://dc1.private.consul.98a0dcc3-5473-4e4d-a28e-6c343c498530.aws.hashicorp.cloud"
-}
-*/

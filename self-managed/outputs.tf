@@ -6,12 +6,14 @@ output "region" {
   value = var.vpc_region
 }
 
+/*
 output "vpc" {
   value = {
     vpc_id         = module.vpc.vpc_id
     vpc_cidr_block = module.vpc.vpc_cidr_block
   }
 }
+*/
 
 ################################################################################
 # EKS Cluster
@@ -62,6 +64,7 @@ output "consul-endpoints" {
   value = [data.kubernetes_endpoints_v1.consul-endpoints.subset[*].address[*].ip]
 }
 
+/*
 data "kubernetes_service" "api-gateway" {
   metadata {
     name = "api-gateway"
@@ -83,6 +86,7 @@ data "kubernetes_service" "consul-ui" {
 output "consul-ui" {
   value = [data.kubernetes_service.consul-ui.status.0.load_balancer.0.ingress.0.hostname]
 }
+*/
 
 /*
 output "kubernetes_node_groups" {
@@ -113,8 +117,6 @@ output "consul_server_address" {
 # ECS Service(s)
 ################################################################################
 
-/*
-output "client_lb_address" {
-  value = "http://${aws_lb.example_client_app.dns_name}:9090/ui"
+output "ecs_cluster_name" {
+  value = data.aws_eks_cluster.cluster.name
 }
-*/

@@ -22,32 +22,20 @@ module "acl-controller" {
   launch_type               = "FARGATE"
 
   consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn
-  #consul_server_ca_cert_arn         = aws_secretsmanager_secret.server_cert.arn
   #consul_server_ca_cert_arn         = aws_secretsmanager_secret.ca_cert.arn
-  #consul_server_http_addr           = "10.0.4.254:8500"
-  #consul_server_http_addr           = "https://${aws_instance.consul.private_ip}:8501"
-  #consul_server_http_addr           = "http://10.0.4.114:8500"
-  #consul_server_http_addr           = "http://ip-10-0-4-57.us-west-2.compute.internal:32255"
+
   consul_server_http_addr           = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
 
-  depends_on = [ aws_secretsmanager_secret.bootstrap_token, aws_secretsmanager_secret.ca_cert ]
+  depends_on = [ aws_secretsmanager_secret.bootstrap_token, aws_secretsmanager_secret.ca_cert, aws_ecs_cluster.ecs_cluster]
 }
-
-/*
-data "kubernetes_service" "consul_server" {
-  metadata {
-    name = "consul-server"
-  }
-
-    records = [data.kubernetes_service.consul_server.status.0.load_balancer.0.ingress.0.hostname]
-}
-*/
 
 module "payment-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
   family         = "payment-api"
+  cpu            = 512
+  memory         = 1024
   container_definitions = [
     {
       name      = "payment-api"
@@ -55,12 +43,11 @@ module "payment-api" {
       essential = true
       portMappings = [
         {
-          containerPort = local.payment_api_port
+          containerPort = 8080
           protocol      = "tcp"
         }
       ]
 
-      cpu         = 0
       mountPoints = []
       volumesFrom = []
 
@@ -84,24 +71,21 @@ module "payment-api" {
     }
   }
 
-  port = local.payment_api_port
+  port = 8080
 
   #retry_join        = [for node in data.kubernetes_nodes.node_data.nodes : node.metadata.0.name]
-  retry_join = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
-  #retry_join        = ["10.0.4.192"]
+  retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
   consul_datacenter = var.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
 
   #tls                       = true
   #consul_server_ca_cert_arn = aws_secretsmanager_secret.server_cert.arn
-  #consul_https_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
+  #consul_https_ca_cert_arn  = aws_secretsmanager_secret.ca_cert.arn
 
   acls                      = true
-  #consul_http_addr          = "https://10.0.4.242:8501"
-  #consul_http_addr          = "http://10.0.4.254:8500"
-  consul_http_addr           = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
+  consul_http_addr          = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
 
-
+  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
 resource "aws_ecs_service" "payment-api" {
@@ -112,7 +96,6 @@ resource "aws_ecs_service" "payment-api" {
 
   network_configuration {
     subnets         = module.vpc.private_subnets
-    #security_groups = [var.security_group_id]
   }
 
   launch_type            = "FARGATE"
@@ -125,8 +108,8 @@ module "product-api" {
   version = "~> 0.6.0"
 
   family         = "product-api"
-  #task_role      = aws_iam_role.product-api-task-role
-  #execution_role = aws_iam_role.product-api-execution-role
+  cpu            = 512
+  memory         = 1024
   container_definitions = [
     {
       name      = "product-api"
@@ -134,7 +117,7 @@ module "product-api" {
       essential = true
       portMappings = [
         {
-          containerPort = local.product_api_port
+          containerPort = 9090
           protocol      = "tcp"
         }
       ]
@@ -142,14 +125,13 @@ module "product-api" {
       environment = [
         {
           name  = "DB_CONNECTION"
-          value = "host=localhost port=${local.product_db_port} user=postgres password=password dbname=products sslmode=disable"
+          value = "host=localhost port=5432 user=postgres password=password dbname=products sslmode=disable"
         },
         {
           name  = "BIND_ADDRESS"
-          value = "localhost:${local.product_api_port}"
-        },
+          value = "localhost:9090"
+        }
       ]
-      cpu         = 0
       mountPoints = []
       volumesFrom = []
 
@@ -167,7 +149,7 @@ module "product-api" {
   upstreams = [
     {
       destinationName = "product-db"
-      localBindPort   = local.product_db_port
+      localBindPort   = 5432
     }
   ]
 
@@ -180,7 +162,7 @@ module "product-api" {
     }
   }
 
-  port = local.product_api_port
+  port = 9090
 
   #retry_join        = [for node in data.kubernetes_nodes.node_data.nodes : node.metadata.0.name]
   retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
@@ -189,13 +171,12 @@ module "product-api" {
 
   #tls                       = true
   #consul_server_ca_cert_arn = aws_secretsmanager_secret.server_cert.arn
-  #consul_https_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
+  #consul_https_ca_cert_arn  = aws_secretsmanager_secret.ca_cert.arn
 
-  acls                           = true
-  #consul_http_addr          = "https://10.0.4.242:8501"
-  consul_http_addr           = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
+  acls                      = true
+  consul_http_addr          = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
 
-
+  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
 resource "aws_ecs_service" "product-api" {
@@ -206,12 +187,13 @@ resource "aws_ecs_service" "product-api" {
 
   network_configuration {
     subnets         = module.vpc.private_subnets
-    #security_groups = [var.security_group_id]
   }
 
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
+
+  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
 module "product-db" {
@@ -219,16 +201,16 @@ module "product-db" {
   version = "~> 0.6.0"
 
   family         = "product-db"
-  #task_role      = aws_iam_role.product-db-task-role
-  #execution_role = aws_iam_role.product-db-execution-role
+  cpu            = 512
+  memory         = 1024
   container_definitions = [
     {
       name      = "product-db"
-      image     = "hashicorpdemoapp/product-api-db:v0.0.20"
+      image     = "hashicorpdemoapp/product-api-db:v0.0.19"
       essential = true
       portMappings = [
         {
-          containerPort = local.product_db_port
+          containerPort = 5432
           protocol      = "tcp"
         }
       ]
@@ -245,9 +227,8 @@ module "product-db" {
         {
           name  = "POSTGRES_PASSWORD"
           value = "password"
-        },
+        }
       ]
-      cpu         = 0
       mountPoints = []
       volumesFrom = []
 
@@ -271,21 +252,20 @@ module "product-db" {
     }
   }
 
-  port = local.product_db_port
+  port = 5432
 
-  #retry_join        = [data.kubernetes_nodes.node_data.nodes.0.metadata.0.name]
-  retry_join        = ["10.0.4.215:8301"]
+  retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
   consul_datacenter = var.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
 
   #tls                       = true
   #consul_server_ca_cert_arn = aws_secretsmanager_secret.server_cert.arn
-  #consul_https_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
+  #consul_https_ca_cert_arn  = aws_secretsmanager_secret.ca_cert.arn
 
-  acls                           = true
-  #consul_http_addr          = "https://10.0.4.242:8501"
-  #consul_http_addr          = "http://10.0.4.254:8500"
-  consul_http_addr           = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
+  acls                      = true
+  consul_http_addr          = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
+
+  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
 resource "aws_ecs_service" "product-db" {
@@ -296,18 +276,11 @@ resource "aws_ecs_service" "product-db" {
 
   network_configuration {
     subnets         = module.vpc.private_subnets
-    #security_groups = [var.security_group_id]
   }
 
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
-}
-
-locals {
-  frontend_port    = 3000
-  public_api_port  = 7070
-  payment_api_port = 8080
-  product_api_port = 9090
-  product_db_port  = 5432
+  
+  depends_on = [aws_ecs_cluster.ecs_cluster]
 }

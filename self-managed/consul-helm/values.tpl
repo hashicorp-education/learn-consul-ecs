@@ -37,14 +37,12 @@ server:
       serf: 32301
 connectInject:
   enabled: true
+  apiGateway:
+    manageExternalCRDs: true
+    managedGatewayClass:
+      serviceType: LoadBalancer
 ui:
   enabled: true
   service:
     enabled: true
-    #type: NodePort
     type: LoadBalancer
-apiGateway:
-  enabled: true
-  image: "hashicorp/consul-api-gateway:${api_gateway_version}"
-  managedGatewayClass:
-    serviceType: LoadBalancer
