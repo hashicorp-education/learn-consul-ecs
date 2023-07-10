@@ -1,7 +1,6 @@
 # ECS cluster
 resource "aws_ecs_cluster" "ecs_cluster" {
-  #name               = local.name
-  name = "learn-consul"
+  name               = local.name
 }
 
 resource "aws_ecs_cluster_capacity_providers" "ecs_capacity_provider" {
