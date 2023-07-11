@@ -43,7 +43,7 @@ module "payment-api" {
       essential = true
       portMappings = [
         {
-          containerPort = 8080
+          containerPort = 7070
           protocol      = "tcp"
         }
       ]
@@ -71,7 +71,7 @@ module "payment-api" {
     }
   }
 
-  port = 8080
+  port = 7070
 
   #retry_join        = [for node in data.kubernetes_nodes.node_data.nodes : node.metadata.0.name]
   retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
@@ -96,6 +96,7 @@ resource "aws_ecs_service" "payment-api" {
 
   network_configuration {
     subnets         = module.vpc.private_subnets
+    security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
   launch_type            = "FARGATE"
@@ -187,6 +188,7 @@ resource "aws_ecs_service" "product-api" {
 
   network_configuration {
     subnets         = module.vpc.private_subnets
+    security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
   launch_type            = "FARGATE"
@@ -276,6 +278,7 @@ resource "aws_ecs_service" "product-db" {
 
   network_configuration {
     subnets         = module.vpc.private_subnets
+    security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
   launch_type            = "FARGATE"
@@ -283,4 +286,26 @@ resource "aws_ecs_service" "product-db" {
   enable_execute_command = true
   
   depends_on = [aws_ecs_cluster.ecs_cluster]
+}
+
+resource "aws_security_group" "allow_all_into_ecs" {
+  name        = "allow_ingress_into_ecs"
+  description = "Allow all inbound traffic into ECS"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description      = "all in from VPC"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "tcp"
+    cidr_blocks      = ["10.0.0.0/16"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
 }

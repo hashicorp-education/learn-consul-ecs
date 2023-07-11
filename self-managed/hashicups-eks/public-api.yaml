@@ -45,8 +45,8 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9102"
         consul.hashicorp.com/connect-inject: "true"
-        #consul.hashicorp.com/connect-service-upstreams: "product-api:9090, payments:1800"
-        #consul.hashicorp.com/transparent-proxy: "false"
+        consul.hashicorp.com/connect-service-upstreams: "product-api:9090, payment-api:7070"
+        consul.hashicorp.com/transparent-proxy: "false"
     spec:
       serviceAccountName: public-api
       containers:
@@ -59,6 +59,6 @@ spec:
             - name: BIND_ADDRESS
               value: ":8080"
             - name: PRODUCT_API_URI
-              value: "http://product-api:9090"
+              value: "http://localhost:9090"
             - name: PAYMENT_API_URI
-              value: "http://payment-api:8080"
+              value: "http://localhost:7070"
