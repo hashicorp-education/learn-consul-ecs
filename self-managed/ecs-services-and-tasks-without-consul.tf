@@ -14,8 +14,8 @@ resource "aws_ecs_service" "payments_api" {
 
 
 # Product API service
-resource "aws_ecs_service" "hashicups_product_api_service" {
-  name            = "${var.name}-hashicups_product_api_service"
+resource "aws_ecs_service" "hashicups_product_api" {
+  name            = "product_api"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = aws_ecs_task_definition.hashicups_product_api_task.arn
   desired_count   = 1
@@ -28,8 +28,8 @@ resource "aws_ecs_service" "hashicups_product_api_service" {
 }
 
 # Product API DB service
-resource "aws_ecs_service" "hashicups_product_api_db_service" {
-  name            = "${var.name}-hashicups_product_api_db_service"
+resource "aws_ecs_service" "hashicups_product_db" {
+  name            = "product_api_db"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = aws_ecs_task_definition.hashicups_product_api_db_task.arn
   desired_count   = 1
