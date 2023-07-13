@@ -14,11 +14,7 @@ terraform {
     }
     kubectl = {
       source  = "gavinbunney/kubectl"
-      version = ">= 1.11.3"
-    }
-    kustomization = {
-      source  = "kbst/kustomization"
-      version = "0.7.2"
+      version = ">= 1.14.0"
     }
     random = {
       source  = "hashicorp/random"
@@ -51,10 +47,3 @@ provider "kubectl" {
   token                  = data.aws_eks_cluster_auth.cluster.token
   load_config_file       = false
 }
-
-/*
-provider "kustomization" {
-  kubeconfig_raw = yamlencode(local.kubeconfig)
-  context        = local.kubeconfig_context
-}
-*/

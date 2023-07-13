@@ -10,6 +10,7 @@ global:
   datacenter: ${datacenter}
   tls:
     enabled: false
+    verify: false
     enableAutoEncrypt: true
     caCert:
       secretName: ca-cert

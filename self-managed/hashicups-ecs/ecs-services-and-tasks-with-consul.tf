@@ -1,19 +1,11 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-
 module "acl-controller" {
   source  = "hashicorp/consul-ecs/aws//modules/acl-controller"
   version = "0.6.0"
 
-  log_configuration = {
-    logDriver = "awslogs"
-    options = {
-      awslogs-group         = aws_cloudwatch_log_group.log_group.name
-      awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "consul-acl-controller"
-    }
-  }
+  log_configuration = local.acl_controller_log_config
 
   name_prefix               = var.name
   ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
@@ -51,25 +43,12 @@ module "payment-api" {
       mountPoints = []
       volumesFrom = []
 
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.log_group.name
-          awslogs-region        = var.vpc_region
-          awslogs-stream-prefix = "payment-api"
-        }
-      }
+      logConfiguration = local.payments_api_log_config
     }
   ]
 
-  log_configuration = {
-    logDriver = "awslogs"
-    options = {
-      awslogs-group         = aws_cloudwatch_log_group.log_group.name
-      awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "payment-api"
-    }
-  }
+  # how does this log config differ from the one in the container definition
+  log_configuration = local.payments_api_log_config
 
   port = 7070
 
@@ -136,14 +115,7 @@ module "product-api" {
       mountPoints = []
       volumesFrom = []
 
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.log_group.name
-          awslogs-region        = var.vpc_region
-          awslogs-stream-prefix = "product-api"
-        }
-      }
+      logConfiguration = local.product_api_log_config
     }
   ]
 
@@ -154,14 +126,7 @@ module "product-api" {
     }
   ]
 
-  log_configuration = {
-    logDriver = "awslogs"
-    options = {
-      awslogs-group         = aws_cloudwatch_log_group.log_group.name
-      awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "product-api"
-    }
-  }
+  log_configuration = local.product_api_log_config
 
   port = 9090
 
@@ -234,25 +199,11 @@ module "product-db" {
       mountPoints = []
       volumesFrom = []
 
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.log_group.name
-          awslogs-region        = var.vpc_region
-          awslogs-stream-prefix = "product-db"
-        }
-      }
+      logConfiguration = local.product_api_db_log_config
     }
   ]
 
-  log_configuration = {
-    logDriver = "awslogs"
-    options = {
-      awslogs-group         = aws_cloudwatch_log_group.log_group.name
-      awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "product-db"
-    }
-  }
+  log_configuration = local.product_api_db_log_config
 
   port = 5432
 

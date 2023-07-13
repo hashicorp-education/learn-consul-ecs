@@ -233,33 +233,3 @@ resource "aws_iam_role_policy_attachment" "task_s3" {
   role       = "${aws_iam_role.ecs_task_role.name}"
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
-
-
-locals {
-  product_api_log_config = {
-    logDriver = "awslogs"
-    options = {
-      awslogs-group         = aws_cloudwatch_log_group.log_group.name
-      awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "product_api"
-    }
-  }
-
-  product_api_db_log_config = {
-    logDriver = "awslogs"
-    options = {
-      awslogs-group         = aws_cloudwatch_log_group.log_group.name
-      awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "product_api_db"
-    }
-  }
-
-  payments_api_log_config = {
-    logDriver = "awslogs"
-    options = {
-      awslogs-group         = aws_cloudwatch_log_group.log_group.name
-      awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "payments"
-    }
-  }
-}
