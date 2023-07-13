@@ -35,10 +35,10 @@ spec:
 apiVersion: consul.hashicorp.com/v1alpha1
 kind: ServiceIntentions
 metadata:
-  name: product-api-db
+  name: product-db
 spec:
   destination:
-    name: product-api-db
+    name: product-db
   sources:
     - name: product-api
       action: allow
@@ -46,10 +46,10 @@ spec:
 apiVersion: consul.hashicorp.com/v1alpha1
 kind: ServiceIntentions
 metadata:
-  name: payments
+  name: payment-api
 spec:
   destination:
-    name: payments
+    name: payment-api
   sources:
     - name: public-api
       action: allow

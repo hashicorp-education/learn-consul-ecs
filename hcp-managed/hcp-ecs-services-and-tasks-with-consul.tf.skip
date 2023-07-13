@@ -8,17 +8,15 @@ module "acl-controller" {
   log_configuration = local.acl_controller_log_config
 
   name_prefix               = var.name
-  ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
+  ecs_cluster_arn           = aws_ecs_cluster.clients.arn
   region                    = var.vpc_region
   subnets                   = module.vpc.private_subnets
   launch_type               = "FARGATE"
 
+  consul_server_http_addr           = hcp_consul_cluster.main.consul_private_endpoint_url
   consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn
-  #consul_server_ca_cert_arn         = aws_secretsmanager_secret.ca_cert.arn
 
-  consul_server_http_addr           = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
-
-  depends_on = [ aws_secretsmanager_secret.bootstrap_token, aws_secretsmanager_secret.ca_cert, aws_ecs_cluster.ecs_cluster]
+  depends_on = [aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.clients, hcp_consul_cluster.main, hcp_aws_network_peering.default]
 }
 
 module "payment-api" {
@@ -52,19 +50,22 @@ module "payment-api" {
 
   port = 7070
 
-  #retry_join        = [for node in data.kubernetes_nodes.node_data.nodes : node.metadata.0.name]
-  retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
-  consul_datacenter = var.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
+  consul_datacenter = hcp_consul_cluster.main.datacenter
+  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
 
-  #tls                       = true
-  #consul_server_ca_cert_arn = aws_secretsmanager_secret.server_cert.arn
   #consul_https_ca_cert_arn  = aws_secretsmanager_secret.ca_cert.arn
 
-  acls                      = true
-  consul_http_addr          = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
+  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
 
-  depends_on = [aws_ecs_cluster.ecs_cluster]
+  tls                       = true
+  consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
+  gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
+
+  acls                           = true
+  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
+
+
+  depends_on = [aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.clients, hcp_consul_cluster.main, hcp_aws_network_peering.default]
 }
 
 resource "aws_ecs_service" "payment-api" {

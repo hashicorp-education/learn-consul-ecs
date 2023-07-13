@@ -45,14 +45,13 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9102"
         consul.hashicorp.com/connect-inject: "true"
-        consul.hashicorp.com/connect-service-upstreams: "product-api:9090, payments:1800"
+        consul.hashicorp.com/connect-service-upstreams: "product-api:9090, payment-api:7070"
         consul.hashicorp.com/transparent-proxy: "false"
     spec:
       serviceAccountName: public-api
       containers:
         - name: public-api
-          # image: hashicorpdemoapp/public-api:v0.0.6
-          image: im2nguyenhashi/hashicups-public-api:v0.0.10
+          image: hashicorpdemoapp/public-api:v0.0.7
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -62,26 +61,4 @@ spec:
             - name: PRODUCT_API_URI
               value: "http://localhost:9090"
             - name: PAYMENT_API_URI
-              value: "http://localhost:1800"
-        - name: jaeger-agent
-          image: jaegertracing/jaeger-agent:latest
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 5775
-              name: zk-compact-trft
-              protocol: UDP
-            - containerPort: 5778
-              name: config-rest
-              protocol: TCP
-            - containerPort: 6831
-              name: jg-compact-trft
-              protocol: UDP
-            - containerPort: 6832
-              name: jg-binary-trft
-              protocol: UDP
-            - containerPort: 14271
-              name: admin-http
-              protocol: TCP
-          args:
-            - --reporter.grpc.host-port=dns:///jaeger-collector-headless.default:14250
-            - --reporter.type=grpc
+              value: "http://localhost:7070"
