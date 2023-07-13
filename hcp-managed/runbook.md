@@ -7,6 +7,8 @@ terraform init
 terraform apply --auto-approve
 # wait 15 minutes for build
 
+terraform output -raw consul_root_token
+
 export CONSUL_HTTP_TOKEN=$(terraform output -raw ecs_cluster_name) && \
 export CONSUL_HTTP_ADDR=$(terraform output -raw ecs_cluster_name) && \
 export CONSUL_APIGW_ADDR=$(terraform output -raw ecs_cluster_name)
