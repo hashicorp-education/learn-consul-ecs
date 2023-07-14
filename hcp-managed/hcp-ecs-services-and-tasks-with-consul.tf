@@ -77,6 +77,8 @@ resource "aws_ecs_service" "payment-api" {
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
+
+  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
 module "product-api" {
@@ -234,49 +236,24 @@ resource "aws_ecs_service" "product-db" {
   depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
-/*
-
-module "nginx" {
-}
-
-resource "aws_ecs_service" "nginx" {
-  name            = "nginx"
-  cluster         = aws_ecs_cluster.clients.arn
-  task_definition = module.nginx.task_definition_arn
-  desired_count   = 1
-
-  network_configuration {
-    subnets         = var.private_subnet_ids
-    security_groups = [var.security_group_id]
-  }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.public-api.arn
-    container_name   = "public-api"
-    container_port   = 80
-  }
-
-  launch_type            = "FARGATE"
-  propagate_tags         = "TASK_DEFINITION"
-  enable_execute_command = true
-}
-
-module "frontend" {
+module "frontend-nginx" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.3.0"
+  version = "~> 0.6.0"
 
-  family         = "frontend"
-
+  family            = "frontend-nginx"
+  cpu               = 512
+  memory            = 1024
+  log_configuration = local.frontend_nginx_log_config
+  port              = 80
 
   container_definitions = [
     {
-      name      = "frontend"
-      image     = "hashicorpdemoapp/frontend:v1.0.2"
+      name      = "frontend-nginx"
+      image     = "hashicorpdemoapp/frontend-nginx:v1.0.9"
       essential = true
       portMappings = [
         {
-          containerPort = local.frontend_port
-          hostPort      = local.frontend_port
+          containerPort = 80
           protocol      = "tcp"
         }
       ]
@@ -292,70 +269,67 @@ module "frontend" {
       mountPoints = []
       volumesFrom = []
 
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.log_group.name
-          awslogs-region        = var.region
-          awslogs-stream-prefix = "frontend"
-        }
-      }
+      logConfiguration = local.frontend_nginx_log_config
     }
   ]
 
-  log_configuration = {
-    logDriver = "awslogs"
-    options = {
-      awslogs-group         = aws_cloudwatch_log_group.log_group.name
-      awslogs-region        = var.region
-      awslogs-stream-prefix = "frontend"
+  upstreams = [
+    {
+      destinationName = "public-api"
+      localBindPort   = 8080
     }
-  }
+  ]
 
-  port = 3000
-
-  retry_join        = var.client_retry_join
-  consul_datacenter = var.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
+  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
+  consul_datacenter = hcp_consul_cluster.main.datacenter
+  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
 
   tls                       = true
   consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
   gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
 
-  acls                           = true
-  consul_client_token_secret_arn = module.acl-controller.client_token_secret_arn
-  acl_secret_name_prefix         = local.secret_prefix
+  acls                      = true
+  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
+
+
+  depends_on = [module.acl-controller]
+
 }
 
-resource "aws_ecs_service" "frontend" {
-  name            = "frontend"
-  cluster         = aws_ecs_cluster.clients.arn
-  task_definition = module.frontend.task_definition_arn
+resource "aws_ecs_service" "frontend-nginx" {
+  name            = "frontend-nginx"
+  cluster         = aws_ecs_cluster.ecs_cluster.arn
+  task_definition = module.frontend-nginx.task_definition_arn
   desired_count   = 1
 
   network_configuration {
-    subnets         = var.private_subnet_ids
-    security_groups = [var.security_group_id]
+    subnets         = module.vpc.private_subnets
+    security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.frontend.arn
-    container_name   = "frontend"
-    container_port   = 3000
+    target_group_arn = aws_lb_target_group.frontend-nginx.arn
+    container_name   = "frontend-nginx"
+    container_port   = 80
   }
 
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
+
+  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
 module "public-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.3.0"
+  version = "~> 0.6.0"
 
-  family         = "public-api"
-  task_role      = aws_iam_role.public-api-task-role
-  execution_role = aws_iam_role.public-api-execution-role
+  family            = "public-api"
+  cpu               = 512
+  memory            = 1024
+  log_configuration = local.public_api_log_config
+  port              = 8080
+
   container_definitions = [
     {
       name      = "public-api"
@@ -363,7 +337,7 @@ module "public-api" {
       essential = true
       portMappings = [
         {
-          containerPort = local.public_api_port
+          containerPort = 8080
           protocol      = "tcp"
         }
       ]
@@ -371,15 +345,15 @@ module "public-api" {
       environment = [
         {
           name  = "BIND_ADDRESS",
-          value = ":${local.public_api_port}"
+          value = ":8080"
         },
         {
           name  = "PRODUCT_API_URI"
-          value = "http://localhost:${local.product_api_port}"
+          value = "http://localhost:9090"
         },
         {
           name  = "PAYMENT_API_URI"
-          value = "http://localhost:${local.payment_api_port}"
+          value = "http://localhost:7070"
         }
       ]
 
@@ -387,76 +361,61 @@ module "public-api" {
       mountPoints = []
       volumesFrom = []
 
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          awslogs-group         = aws_cloudwatch_log_group.log_group.name
-          awslogs-region        = var.region
-          awslogs-stream-prefix = "public-api"
-        }
-      }
+      logConfiguration = local.public_api_log_config
     }
   ]
 
   upstreams = [
     {
       destinationName = "product-api"
-      localBindPort   = local.product_api_port
+      localBindPort   = 9090
     },
     {
       destinationName = "payment-api"
-      localBindPort   = local.payment_api_port
+      localBindPort   = 7070
     }
   ]
 
-
-  log_configuration = {
-    logDriver = "awslogs"
-    options = {
-      awslogs-group         = aws_cloudwatch_log_group.log_group.name
-      awslogs-region        = var.region
-      awslogs-stream-prefix = "public-api"
-    }
-  }
-
-  port = local.public_api_port
-
-  retry_join        = var.client_retry_join
-  consul_datacenter = var.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
+  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
+  consul_datacenter = hcp_consul_cluster.main.datacenter
+  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
 
   tls                       = true
   consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
   gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
 
-  acls                           = true
-  consul_client_token_secret_arn = module.acl-controller.client_token_secret_arn
-  acl_secret_name_prefix         = local.secret_prefix
+  acls                      = true
+  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
+
+
+  depends_on = [module.acl-controller]
 }
 
 resource "aws_ecs_service" "public-api" {
   name            = "public-api"
-  cluster         = aws_ecs_cluster.clients.arn
+  cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = module.public-api.task_definition_arn
   desired_count   = 1
 
   network_configuration {
-    subnets         = var.private_subnet_ids
-    security_groups = [var.security_group_id]
+    subnets         = module.vpc.private_subnets
+    security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
+/*
   load_balancer {
     target_group_arn = aws_lb_target_group.public-api.arn
     container_name   = "public-api"
     container_port   = 8080
   }
+*/
 
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
-}
 
-*/
+  depends_on = [aws_ecs_cluster.ecs_cluster]
+}
 
 
 resource "aws_security_group" "allow_all_into_ecs" {

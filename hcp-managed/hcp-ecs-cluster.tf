@@ -14,3 +14,7 @@ resource "aws_ecs_cluster_capacity_providers" "ecs_capacity_provider" {
     capacity_provider = "FARGATE"
   }
 }
+
+data "aws_ecs_cluster" "ecs_cluster" {
+  cluster_name = aws_ecs_cluster.ecs_cluster.name
+}

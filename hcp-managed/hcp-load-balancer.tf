@@ -6,8 +6,8 @@ resource "aws_lb" "ingress" {
   subnets            = module.vpc.public_subnets
 }
 
-resource "aws_lb_target_group" "nginx" {
-  name                 = "${local.name}-nginx"
+resource "aws_lb_target_group" "frontend-nginx" {
+  name                 = "${local.name}-frontend-nginx"
   port                 = 80
   protocol             = "HTTP"
   vpc_id               = module.vpc.vpc_id
@@ -15,30 +15,30 @@ resource "aws_lb_target_group" "nginx" {
   deregistration_delay = 10
 }
 
-resource "aws_lb_listener" "nginx" {
+resource "aws_lb_listener" "frontend-nginx" {
   load_balancer_arn = aws_lb.ingress.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.nginx.arn
+    target_group_arn = aws_lb_target_group.frontend-nginx.arn
   }
 }
 
-resource "aws_lb_listener_rule" "nginx" {
-  listener_arn = aws_lb_listener.nginx.arn
+resource "aws_lb_listener_rule" "frontend-nginx" {
+  listener_arn = aws_lb_listener.frontend-nginx.arn
   priority     = 100
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.nginx.arn
+    target_group_arn = aws_lb_target_group.frontend-nginx.arn
   }
 
-  /*condition {
+  condition {
     path_pattern {
       values = ["/api", "/api/*"]
     }
   }
-  */
+  
 }

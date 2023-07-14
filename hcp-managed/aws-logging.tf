@@ -8,7 +8,7 @@ locals {
     options = {
       awslogs-group         = aws_cloudwatch_log_group.log_group.name
       awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "product_api"
+      awslogs-stream-prefix = "product-api"
     }
   }
 
@@ -17,7 +17,7 @@ locals {
     options = {
       awslogs-group         = aws_cloudwatch_log_group.log_group.name
       awslogs-region        = var.vpc_region
-      awslogs-stream-prefix = "product_api_db"
+      awslogs-stream-prefix = "product-api-db"
     }
   }
 
@@ -27,6 +27,33 @@ locals {
       awslogs-group         = aws_cloudwatch_log_group.log_group.name
       awslogs-region        = var.vpc_region
       awslogs-stream-prefix = "payments"
+    }
+  }
+
+  frontend_nginx_log_config = {
+    logDriver = "awslogs"
+    options = {
+      awslogs-group         = aws_cloudwatch_log_group.log_group.name
+      awslogs-region        = var.vpc_region
+      awslogs-stream-prefix = "frontend-nginx"
+    }
+  }
+
+  frontend_log_config = {
+    logDriver = "awslogs"
+    options = {
+      awslogs-group         = aws_cloudwatch_log_group.log_group.name
+      awslogs-region        = var.vpc_region
+      awslogs-stream-prefix = "frontend"
+    }
+  }
+
+  public_api_log_config = {
+    logDriver = "awslogs"
+    options = {
+      awslogs-group         = aws_cloudwatch_log_group.log_group.name
+      awslogs-region        = var.vpc_region
+      awslogs-stream-prefix = "public-api"
     }
   }
 

@@ -18,8 +18,7 @@ CTRL+C
 echo $CONSUL_APIGW_ADDR
 # Go to API gateway URL and see only frontend part of application is available
 
-# remove .tf extension from ecs-services-and-tasks-without-consul.tf
-# add .tf extension to end of ecs-service-and-task-with-consul.tf
+cp -f hashicups-ecs/ecs-services-and-tasks-with-consul.tf ecs-services-and-tasks.tf
 
 terraform apply --auto-approve
 

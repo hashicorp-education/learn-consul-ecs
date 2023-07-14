@@ -5,31 +5,31 @@ eval $(dm)
 
 terraform init
 terraform apply --auto-approve
-# wait 15 minutes for build
+# wait 10-15 minutes for build
 
-terraform output -raw consul_root_token
-
-export CONSUL_HTTP_TOKEN=$(terraform output -raw ecs_cluster_name) && \
-export CONSUL_HTTP_ADDR=$(terraform output -raw ecs_cluster_name) && \
-export CONSUL_APIGW_ADDR=$(terraform output -raw ecs_cluster_name)
+export CONSUL_HTTP_TOKEN=$(terraform output -raw consul_root_token) && \
+export CONSUL_HTTP_ADDR=$(terraform output -raw consul_url)
 
 consul catalog services
-# notice only half (3) of the hashicups microservices are in the mesh
+# notice there are no HashiCups microservices in the mesh
 
 aws ecs list-services --region $(terraform output -raw region) --cluster $(terraform output -raw ecs_cluster_name)
-# notice the other half (3) of the hashicups microservices are in ECS
+# notice the HashiCups microservices are in ECS, but not integrated with Consul
 CTRL+C
 
-echo $CONSUL_APIGW_ADDR
-# Go to API gateway URL and see only frontend part of application is available
+terraform output -raw hashicups_url
+# Go to the HashiCups URL and see only the frontend part of application is available
 
-# remove .tf extension from ecs-services-and-tasks-without-consul.tf
-# add .tf extension to end of ecs-service-and-task-with-consul.tf
+cp -f hashicups-ecs/ecs-services-and-tasks-with-consul.tf ecs-services-and-tasks.tf
 
 terraform apply --auto-approve
 
-consul catalog services
-# notice now all (6) of the hashicups microservices are in the mesh
+aws ecs list-services --region $(terraform output -raw region) --cluster $(terraform output -raw ecs_cluster_name)
+# notice the HashiCups microservices have been modified in ECS
+CTRL+C
 
-echo $CONSUL_APIGW_ADDR
-# Go to API gateway URL and see the whole application works
+consul catalog services
+# notice now all 5 of the HashiCups microservices are in the mesh
+
+terraform output -raw hashicups_url
+# Go to the HashiCups URL and see the whole application works

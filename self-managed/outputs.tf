@@ -118,5 +118,5 @@ output "consul_server_address" {
 ################################################################################
 
 output "ecs_cluster_name" {
-  value = data.aws_eks_cluster.cluster.name
+  value = data.aws_ecs_cluster.ecs_cluster.cluster_name
 }
