@@ -1,8 +1,8 @@
 # Payments API service
-resource "aws_ecs_service" "payments_api" {
-  name            = "payments_api"
+resource "aws_ecs_service" "payments" {
+  name            = "payments"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = aws_ecs_task_definition.hashicups_payments_api_task.arn
+  task_definition = aws_ecs_task_definition.payments_task.arn
   desired_count   = 1
   network_configuration {
     subnets = module.vpc.private_subnets
@@ -12,12 +12,11 @@ resource "aws_ecs_service" "payments_api" {
   enable_execute_command = true
 }
 
-
 # Product API service
-resource "aws_ecs_service" "hashicups_product_api" {
+resource "aws_ecs_service" "product_api" {
   name            = "product_api"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = aws_ecs_task_definition.hashicups_product_api_task.arn
+  task_definition = aws_ecs_task_definition.product_api_task.arn
   desired_count   = 1
   network_configuration {
     subnets = module.vpc.private_subnets
@@ -28,10 +27,10 @@ resource "aws_ecs_service" "hashicups_product_api" {
 }
 
 # Product API DB service
-resource "aws_ecs_service" "hashicups_product_db" {
-  name            = "product_api_db"
+resource "aws_ecs_service" "product_db" {
+  name            = "product-db"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = aws_ecs_task_definition.hashicups_product_api_db_task.arn
+  task_definition = aws_ecs_task_definition.product_api_db_task.arn
   desired_count   = 1
   network_configuration {
     subnets = module.vpc.private_subnets
@@ -41,9 +40,43 @@ resource "aws_ecs_service" "hashicups_product_db" {
   enable_execute_command = true
 }
 
+# Frontend NGINX service
+resource "aws_ecs_service" "frontend_nginx" {
+  name            = "frontend-nginx"
+  cluster         = aws_ecs_cluster.ecs_cluster.arn
+  task_definition = aws_ecs_task_definition.frontend_nginx_task.arn
+  desired_count   = 1
+  network_configuration {
+    subnets         = module.vpc.private_subnets
+    security_groups = [aws_security_group.allow_all_into_ecs.id]
+  }
+  load_balancer {
+    target_group_arn = aws_lb_target_group.frontend-nginx.arn
+    container_name   = "frontend-nginx"
+    container_port   = 80
+  }
+  launch_type            = "FARGATE"
+  propagate_tags         = "TASK_DEFINITION"
+  enable_execute_command = true
+}
 
-resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
-  family                   = "payments_api"
+# Public API service
+resource "aws_ecs_service" "public_api" {
+  name            = "public-api"
+  cluster         = aws_ecs_cluster.ecs_cluster.arn
+  task_definition = aws_ecs_task_definition.public_api_task.arn
+  desired_count   = 1
+  network_configuration {
+    subnets = module.vpc.private_subnets
+  }
+  launch_type            = "FARGATE"
+  propagate_tags         = "TASK_DEFINITION"
+  enable_execute_command = true
+}
+
+# Payments API task defintion without Consul
+resource "aws_ecs_task_definition" "payments_task" {
+  family                   = "payments"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
@@ -53,10 +86,10 @@ resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
 
   container_definitions = jsonencode([
     {
-      name      = "payments_api"
+      name      = "payments"
       image     = "hashicorpdemoapp/payments:v0.0.16"
       essential = true
-      logConfiguration = local.payments_api_log_config
+      logConfiguration = local.payments_log_config
 
       portMappings = [
         {
@@ -72,8 +105,8 @@ resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
 }
 
 # Product API task defintion without Consul
-resource "aws_ecs_task_definition" "hashicups_product_api_task" {
-  family                   = "${var.name}-hashicups_product_api_task"
+resource "aws_ecs_task_definition" "product_api_task" {
+  family                   = "${local.name}-product_api_task"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
@@ -117,7 +150,6 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
         protocol      = "tcp"
       }
     ]
-    memory      = 512
     mountPoints = [
     ]
     volumesFrom = []
@@ -125,10 +157,9 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
   ])
 }
 
-
 # Product API DB task defintion without Consul
-resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
-  family                   = "${var.name}-hashicups_product_api_db_task"
+resource "aws_ecs_task_definition" "product_api_db_task" {
+  family                   = "${local.name}-product_api_db_task"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
@@ -138,14 +169,14 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
 
   container_definitions = jsonencode([
     {
-    name             = "product-api-db"
+    name             = "product-db"
     image            = "hashicorpdemoapp/product-api-db:v0.0.22"
     essential        = true
     logConfiguration = local.product_api_db_log_config
     environment = [
       {
         name  = "NAME"
-        value = "product-api-db"
+        value = "product-db"
       },
       {
         name  = "POSTGRES_DB"
@@ -167,7 +198,6 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
         protocol      = "tcp"
       }
     ]
-    memory      = 512
     mountPoints = [
       {
         sourceVolume = "pgdata",
@@ -180,6 +210,80 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
   volume {
     name      = "pgdata"
   }
+}
+
+# Frontend NGINX task defintion without Consul
+resource "aws_ecs_task_definition" "frontend_nginx_task" {
+  family                   = "${local.name}-frontend_nginx_task"
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+
+  container_definitions = jsonencode([
+    {
+    name             = "frontend-nginx"
+    image            = "hashicorpdemoapp/frontend-nginx:v1.0.9"
+    essential        = true
+    logConfiguration = local.frontend_nginx_log_config
+    environment = [
+      {
+        name  = "NEXT_PUBLIC_PUBLIC_API_URL"
+        value = "/"
+      }
+    ]
+    portMappings = [
+      {
+        containerPort = 80
+        protocol      = "tcp"
+      }
+    ]
+    mountPoints = []
+    volumesFrom = []
+    }
+  ])
+}
+
+# Public API task defintion without Consul
+resource "aws_ecs_task_definition" "public_api_task" {
+  family                   = "${local.name}-public_api_task"
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+
+  container_definitions = jsonencode([
+    {
+    name             = "public-api"
+    image            = "hashicorpdemoapp/public-api:v0.0.6"
+    essential        = true
+    logConfiguration = local.public_api_log_config
+    portMappings = [
+      {
+        containerPort = 8080
+        protocol      = "tcp"
+      }
+    ]
+    environment = [
+      {
+        name  = "BIND_ADDRESS",
+        value = ":8080"
+      },
+      {
+        name  = "PRODUCT_API_URI"
+        value = "http://localhost:9090"
+      },
+      {
+        name  = "PAYMENT_API_URI"
+        value = "http://localhost:7070"
+      }
+    ]
+    }
+  ])
 }
 
 ## AWS IAM roles and policies for ECS tasks
@@ -232,4 +336,26 @@ resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attach
 resource "aws_iam_role_policy_attachment" "task_s3" {
   role       = "${aws_iam_role.ecs_task_role.name}"
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+resource "aws_security_group" "allow_all_into_ecs" {
+  name        = "allow_ingress_into_ecs"
+  description = "Allow all inbound traffic into ECS"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description      = "all in from VPC"
+    from_port        = 0
+    to_port          = 65535
+    protocol         = "tcp"
+    cidr_blocks      = ["10.0.0.0/16"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
 }

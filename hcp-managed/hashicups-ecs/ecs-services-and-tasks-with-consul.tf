@@ -19,19 +19,19 @@ module "acl-controller" {
   depends_on = [aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.ecs_cluster, hcp_consul_cluster.main, module.aws_hcp_consul]
 }
 
-module "payment-api" {
+module "payments" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
-  family            = "payment-api"
+  family            = "payments"
   cpu               = 512
   memory            = 1024
-  log_configuration = local.payments_api_log_config
+  log_configuration = local.payments_log_config
   port              = 7070
   
   container_definitions = [
     {
-      name      = "payment-api"
+      name      = "payments"
       image     = "hashicorpdemoapp/payments:v0.0.16"
       essential = true
       portMappings = [
@@ -44,7 +44,7 @@ module "payment-api" {
       mountPoints = []
       volumesFrom = []
 
-      logConfiguration = local.payments_api_log_config
+      logConfiguration = local.payments_log_config
     }
   ]
 
@@ -63,10 +63,10 @@ module "payment-api" {
   depends_on = [module.acl-controller]
 }
 
-resource "aws_ecs_service" "payment-api" {
-  name            = "payment-api"
+resource "aws_ecs_service" "payments" {
+  name            = "payments"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = module.payment-api.task_definition_arn
+  task_definition = module.payments.task_definition_arn
   desired_count   = 1
 
   network_configuration {
@@ -371,7 +371,7 @@ module "public-api" {
       localBindPort   = 9090
     },
     {
-      destinationName = "payment-api"
+      destinationName = "payments"
       localBindPort   = 7070
     }
   ]
@@ -401,14 +401,6 @@ resource "aws_ecs_service" "public-api" {
     subnets         = module.vpc.private_subnets
     security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
-
-/*
-  load_balancer {
-    target_group_arn = aws_lb_target_group.public-api.arn
-    container_name   = "public-api"
-    container_port   = 8080
-  }
-*/
 
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"

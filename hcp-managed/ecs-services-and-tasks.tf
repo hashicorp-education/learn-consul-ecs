@@ -402,14 +402,6 @@ resource "aws_ecs_service" "public-api" {
     security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
-/*
-  load_balancer {
-    target_group_arn = aws_lb_target_group.public-api.arn
-    container_name   = "public-api"
-    container_port   = 8080
-  }
-*/
-
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true

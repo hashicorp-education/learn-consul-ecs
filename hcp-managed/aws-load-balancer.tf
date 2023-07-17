@@ -2,7 +2,7 @@ resource "aws_lb" "ingress" {
   name               = "${local.name}-ingress"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [module.aws_hcp_consul.security_group_id]
+  security_groups    = [aws_security_group.allow_all_http_into_hashicups.id]
   subnets            = module.vpc.public_subnets
 }
 
@@ -41,4 +41,27 @@ resource "aws_lb_listener_rule" "frontend-nginx" {
     }
   }
   
+}
+
+
+resource "aws_security_group" "allow_all_http_into_hashicups" {
+  name        = "allow_http_into_hashicups"
+  description = "Allow all inbound HTTP traffic into hashicups via AWS load balancer"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description      = "all HTTP inbound into hashicups"
+    from_port        = 80
+    to_port          = 80
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
 }
