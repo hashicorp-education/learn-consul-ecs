@@ -7,30 +7,30 @@ module "acl-controller" {
 
   log_configuration = local.acl_controller_log_config
 
-  name_prefix               = var.name
+  name_prefix               = local.name
   ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
   region                    = var.vpc_region
   subnets                   = module.vpc.private_subnets
   launch_type               = "FARGATE"
 
-  consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn
-  #consul_server_ca_cert_arn         = aws_secretsmanager_secret.ca_cert.arn
-
   consul_server_http_addr           = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
+  consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn
 
   depends_on = [ aws_secretsmanager_secret.bootstrap_token, aws_secretsmanager_secret.ca_cert, aws_ecs_cluster.ecs_cluster]
 }
 
-module "payment-api" {
+module "payments" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
-  family         = "payment-api"
+  family         = "${local.name}-payments"
   cpu            = 512
   memory         = 1024
+  log_configuration = local.payments_log_config
+
   container_definitions = [
     {
-      name      = "payment-api"
+      name      = "payments"
       image     = "hashicorpdemoapp/payments:v0.0.16"
       essential = true
       portMappings = [
@@ -47,19 +47,12 @@ module "payment-api" {
     }
   ]
 
-  # how does this log config differ from the one in the container definition
-  log_configuration = local.payments_api_log_config
+  consul_service_name = "payments"
+  port                = 7070
 
-  port = 7070
-
-  #retry_join        = [for node in data.kubernetes_nodes.node_data.nodes : node.metadata.0.name]
   retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
   consul_datacenter = var.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
-
-  #tls                       = true
-  #consul_server_ca_cert_arn = aws_secretsmanager_secret.server_cert.arn
-  #consul_https_ca_cert_arn  = aws_secretsmanager_secret.ca_cert.arn
 
   acls                      = true
   consul_http_addr          = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
@@ -67,10 +60,10 @@ module "payment-api" {
   depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
-resource "aws_ecs_service" "payment-api" {
-  name            = "payment-api"
+resource "aws_ecs_service" "payments" {
+  name            = "payments-consul"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = module.payment-api.task_definition_arn
+  task_definition = module.payments.task_definition_arn
   desired_count   = 1
 
   network_configuration {
@@ -87,9 +80,11 @@ module "product-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
-  family         = "product-api"
+  family         = "${local.name}-product-api"
   cpu            = 512
   memory         = 1024
+  log_configuration = local.product_api_log_config
+
   container_definitions = [
     {
       name      = "product-api"
@@ -126,18 +121,12 @@ module "product-api" {
     }
   ]
 
-  log_configuration = local.product_api_log_config
+  consul_service_name = "product-api"
+  port                = 9090
 
-  port = 9090
-
-  #retry_join        = [for node in data.kubernetes_nodes.node_data.nodes : node.metadata.0.name]
   retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
   consul_datacenter = var.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
-
-  #tls                       = true
-  #consul_server_ca_cert_arn = aws_secretsmanager_secret.server_cert.arn
-  #consul_https_ca_cert_arn  = aws_secretsmanager_secret.ca_cert.arn
 
   acls                      = true
   consul_http_addr          = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
@@ -146,7 +135,7 @@ module "product-api" {
 }
 
 resource "aws_ecs_service" "product-api" {
-  name            = "product-api"
+  name            = "product-api-consul"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = module.product-api.task_definition_arn
   desired_count   = 1
@@ -167,9 +156,12 @@ module "product-db" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
-  family         = "product-db"
+  family         = "${local.name}-product-db"
   cpu            = 512
   memory         = 1024
+  log_configuration = local.product_api_db_log_config
+
+  
   container_definitions = [
     {
       name      = "product-db"
@@ -203,17 +195,12 @@ module "product-db" {
     }
   ]
 
-  log_configuration = local.product_api_db_log_config
-
-  port = 5432
+  consul_service_name = "product-db"
+  port                = 5432
 
   retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
   consul_datacenter = var.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
-
-  #tls                       = true
-  #consul_server_ca_cert_arn = aws_secretsmanager_secret.server_cert.arn
-  #consul_https_ca_cert_arn  = aws_secretsmanager_secret.ca_cert.arn
 
   acls                      = true
   consul_http_addr          = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
@@ -222,7 +209,7 @@ module "product-db" {
 }
 
 resource "aws_ecs_service" "product-db" {
-  name            = "product-db"
+  name            = "product-db-consul"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = module.product-db.task_definition_arn
   desired_count   = 1
