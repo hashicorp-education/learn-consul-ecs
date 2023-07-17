@@ -23,11 +23,10 @@ module "payments" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
-  family            = "payments"
+  family            = "${local.name}-payments"
   cpu               = 512
   memory            = 1024
   log_configuration = local.payments_log_config
-  port              = 7070
   
   container_definitions = [
     {
@@ -48,6 +47,9 @@ module "payments" {
     }
   ]
 
+  consul_service_name = "payments"
+  port                = 7070
+
   retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
   consul_datacenter = hcp_consul_cluster.main.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
@@ -64,7 +66,7 @@ module "payments" {
 }
 
 resource "aws_ecs_service" "payments" {
-  name            = "payments"
+  name            = "payments-consul"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = module.payments.task_definition_arn
   desired_count   = 1
@@ -85,11 +87,10 @@ module "product-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
-  family            = "product-api"
+  family            = "${local.name}-product-api"
   cpu               = 512
   memory            = 1024
   log_configuration = local.product_api_log_config
-  port              = 9090
 
   container_definitions = [
     {
@@ -127,6 +128,9 @@ module "product-api" {
     }
   ]
 
+  consul_service_name = "product-api"
+  port                = 9090
+
   retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
   consul_datacenter = hcp_consul_cluster.main.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
@@ -143,7 +147,7 @@ module "product-api" {
 }
 
 resource "aws_ecs_service" "product-api" {
-  name            = "product-api"
+  name            = "product-api-consul"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = module.product-api.task_definition_arn
   desired_count   = 1
@@ -164,11 +168,10 @@ module "product-db" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
-  family            = "product-db"
+  family            = "${local.name}-product-db"
   cpu               = 512
   memory            = 1024
   log_configuration = local.product_api_db_log_config
-  port              = 5432
 
   container_definitions = [
     {
@@ -203,6 +206,9 @@ module "product-db" {
     }
   ]
 
+  consul_service_name = "product-db"
+  port                = 5432
+
   retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
   consul_datacenter = hcp_consul_cluster.main.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
@@ -219,7 +225,7 @@ module "product-db" {
 }
 
 resource "aws_ecs_service" "product-db" {
-  name            = "product-db"
+  name            = "product-db-consul"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = module.product-db.task_definition_arn
   desired_count   = 1
@@ -240,11 +246,10 @@ module "frontend-nginx" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
-  family            = "frontend-nginx"
+  family            = "${local.name}-frontend-nginx"
   cpu               = 512
   memory            = 1024
   log_configuration = local.frontend_nginx_log_config
-  port              = 80
 
   container_definitions = [
     {
@@ -280,6 +285,9 @@ module "frontend-nginx" {
     }
   ]
 
+  consul_service_name = "frontend-nginx"
+  port                = 80
+
   retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
   consul_datacenter = hcp_consul_cluster.main.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
@@ -297,7 +305,7 @@ module "frontend-nginx" {
 }
 
 resource "aws_ecs_service" "frontend-nginx" {
-  name            = "frontend-nginx"
+  name            = "frontend-nginx-consul"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = module.frontend-nginx.task_definition_arn
   desired_count   = 1
@@ -324,11 +332,10 @@ module "public-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "~> 0.6.0"
 
-  family            = "public-api"
+  family            = "${local.name}-public-api"
   cpu               = 512
   memory            = 1024
   log_configuration = local.public_api_log_config
-  port              = 8080
 
   container_definitions = [
     {
@@ -376,6 +383,9 @@ module "public-api" {
     }
   ]
 
+  consul_service_name = "public-api"
+  port                = 8080
+
   retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
   consul_datacenter = hcp_consul_cluster.main.datacenter
   consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
@@ -392,7 +402,7 @@ module "public-api" {
 }
 
 resource "aws_ecs_service" "public-api" {
-  name            = "public-api"
+  name            = "public-api-consul"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = module.public-api.task_definition_arn
   desired_count   = 1

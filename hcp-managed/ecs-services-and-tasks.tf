@@ -1,340 +1,96 @@
-# Copyright (c) HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
-module "acl-controller" {
-  source  = "hashicorp/consul-ecs/aws//modules/acl-controller"
-  version = "0.6.0"
-
-  log_configuration = local.acl_controller_log_config
-
-  name_prefix               = local.name
-  ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
-  region                    = var.vpc_region
-  subnets                   = module.vpc.private_subnets
-  launch_type               = "FARGATE"
-
-  consul_server_http_addr           = hcp_consul_cluster.main.consul_private_endpoint_url
-  consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn
-
-  depends_on = [aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.ecs_cluster, hcp_consul_cluster.main, module.aws_hcp_consul]
-}
-
-module "payments" {
-  source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
-
-  family            = "payments"
-  cpu               = 512
-  memory            = 1024
-  log_configuration = local.payments_log_config
-  port              = 7070
-  
-  container_definitions = [
-    {
-      name      = "payments"
-      image     = "hashicorpdemoapp/payments:v0.0.16"
-      essential = true
-      portMappings = [
-        {
-          containerPort = 7070
-          protocol      = "tcp"
-        }
-      ]
-
-      mountPoints = []
-      volumesFrom = []
-
-      logConfiguration = local.payments_log_config
-    }
-  ]
-
-  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
-  consul_datacenter = hcp_consul_cluster.main.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
-
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
-  gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
-
-  acls                      = true
-  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
-
-
-  depends_on = [module.acl-controller]
-}
-
+# Payments API service
 resource "aws_ecs_service" "payments" {
   name            = "payments"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = module.payments.task_definition_arn
+  task_definition = aws_ecs_task_definition.payments_task.arn
   desired_count   = 1
-
   network_configuration {
-    subnets         = module.vpc.private_subnets
-    security_groups = [aws_security_group.allow_all_into_ecs.id]
+    subnets = module.vpc.private_subnets
   }
-
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
-
-  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
-module "product-api" {
-  source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
-
-  family            = "product-api"
-  cpu               = 512
-  memory            = 1024
-  log_configuration = local.product_api_log_config
-  port              = 9090
-
-  container_definitions = [
-    {
-      name      = "product-api"
-      image     = "hashicorpdemoapp/product-api:v0.0.20"
-      essential = true
-      portMappings = [
-        {
-          containerPort = 9090
-          protocol      = "tcp"
-        }
-      ]
-
-      environment = [
-        {
-          name  = "DB_CONNECTION"
-          value = "host=localhost port=5432 user=postgres password=password dbname=products sslmode=disable"
-        },
-        {
-          name  = "BIND_ADDRESS"
-          value = "localhost:9090"
-        }
-      ]
-      mountPoints = []
-      volumesFrom = []
-
-      logConfiguration = local.product_api_log_config
-    }
-  ]
-
-  upstreams = [
-    {
-      destinationName = "product-db"
-      localBindPort   = 5432
-    }
-  ]
-
-  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
-  consul_datacenter = hcp_consul_cluster.main.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
-
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
-  gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
-
-  acls                      = true
-  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
-
-
-  depends_on = [module.acl-controller]
-}
-
-resource "aws_ecs_service" "product-api" {
+# Product API service
+resource "aws_ecs_service" "product_api" {
   name            = "product-api"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = module.product-api.task_definition_arn
+  task_definition = aws_ecs_task_definition.product_api_task.arn
   desired_count   = 1
-
   network_configuration {
-    subnets         = module.vpc.private_subnets
-    security_groups = [aws_security_group.allow_all_into_ecs.id]
+    subnets = module.vpc.private_subnets
   }
-
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
-
-  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
-module "product-db" {
-  source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
-
-  family            = "product-db"
-  cpu               = 512
-  memory            = 1024
-  log_configuration = local.product_api_db_log_config
-  port              = 5432
-
-  container_definitions = [
-    {
-      name      = "product-db"
-      image     = "hashicorpdemoapp/product-api-db:v0.0.19"
-      essential = true
-      portMappings = [
-        {
-          containerPort = 5432
-          protocol      = "tcp"
-        }
-      ]
-
-      environment = [
-        {
-          name  = "POSTGRES_DB"
-          value = "products"
-        },
-        {
-          name  = "POSTGRES_USER"
-          value = "postgres"
-        },
-        {
-          name  = "POSTGRES_PASSWORD"
-          value = "password"
-        }
-      ]
-      mountPoints = []
-      volumesFrom = []
-
-      logConfiguration = local.product_api_db_log_config
-    }
-  ]
-
-  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
-  consul_datacenter = hcp_consul_cluster.main.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
-
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
-  gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
-
-  acls                      = true
-  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
-
-
-  depends_on = [module.acl-controller]
-}
-
-resource "aws_ecs_service" "product-db" {
+# Product API DB service
+resource "aws_ecs_service" "product_db" {
   name            = "product-db"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = module.product-db.task_definition_arn
+  task_definition = aws_ecs_task_definition.product_api_db_task.arn
   desired_count   = 1
-
   network_configuration {
-    subnets         = module.vpc.private_subnets
-    security_groups = [aws_security_group.allow_all_into_ecs.id]
+    subnets = module.vpc.private_subnets
   }
-
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
-  
-  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
-module "frontend-nginx" {
-  source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
-
-  family            = "frontend-nginx"
-  cpu               = 512
-  memory            = 1024
-  log_configuration = local.frontend_nginx_log_config
-  port              = 80
-
-  container_definitions = [
-    {
-      name      = "frontend-nginx"
-      image     = "hashicorpdemoapp/frontend-nginx:v1.0.9"
-      essential = true
-      portMappings = [
-        {
-          containerPort = 80
-          protocol      = "tcp"
-        }
-      ]
-
-      environment = [
-        {
-          name  = "NEXT_PUBLIC_PUBLIC_API_URL"
-          value = "/"
-        }
-      ]
-
-      cpu         = 0
-      mountPoints = []
-      volumesFrom = []
-
-      logConfiguration = local.frontend_nginx_log_config
-    }
-  ]
-
-  upstreams = [
-    {
-      destinationName = "public-api"
-      localBindPort   = 8080
-    }
-  ]
-
-  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
-  consul_datacenter = hcp_consul_cluster.main.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
-
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
-  gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
-
-  acls                      = true
-  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
-
-
-  depends_on = [module.acl-controller]
-
-}
-
-resource "aws_ecs_service" "frontend-nginx" {
+# Frontend NGINX service
+resource "aws_ecs_service" "frontend_nginx" {
   name            = "frontend-nginx"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = module.frontend-nginx.task_definition_arn
+  task_definition = aws_ecs_task_definition.frontend_nginx_task.arn
   desired_count   = 1
-
   network_configuration {
     subnets         = module.vpc.private_subnets
     security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
-
   load_balancer {
     target_group_arn = aws_lb_target_group.frontend-nginx.arn
     container_name   = "frontend-nginx"
     container_port   = 80
   }
-
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
-
-  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
-module "public-api" {
-  source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
+# Public API service
+resource "aws_ecs_service" "public_api" {
+  name            = "public-api"
+  cluster         = aws_ecs_cluster.ecs_cluster.arn
+  task_definition = aws_ecs_task_definition.public_api_task.arn
+  desired_count   = 1
+  network_configuration {
+    subnets = module.vpc.private_subnets
+  }
+  launch_type            = "FARGATE"
+  propagate_tags         = "TASK_DEFINITION"
+  enable_execute_command = true
+}
 
-  family            = "public-api"
-  cpu               = 512
-  memory            = 1024
-  log_configuration = local.public_api_log_config
-  port              = 8080
+# Payments API task defintion without Consul
+resource "aws_ecs_task_definition" "payments_task" {
+  family                   = "${local.name}-payments"
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
 
-  container_definitions = [
+  container_definitions = jsonencode([
     {
-      name      = "public-api"
-      image     = "hashicorpdemoapp/public-api:v0.0.6"
+      name      = "payments"
+      image     = "hashicorpdemoapp/payments:v0.0.16"
       essential = true
+      logConfiguration = local.payments_log_config
+
       portMappings = [
         {
           containerPort = 8080
@@ -342,73 +98,245 @@ module "public-api" {
         }
       ]
 
-      environment = [
-        {
-          name  = "BIND_ADDRESS",
-          value = ":8080"
-        },
-        {
-          name  = "PRODUCT_API_URI"
-          value = "http://localhost:9090"
-        },
-        {
-          name  = "PAYMENT_API_URI"
-          value = "http://localhost:7070"
-        }
-      ]
-
-      cpu         = 0
       mountPoints = []
       volumesFrom = []
-
-      logConfiguration = local.public_api_log_config
     }
-  ]
-
-  upstreams = [
-    {
-      destinationName = "product-api"
-      localBindPort   = 9090
-    },
-    {
-      destinationName = "payments"
-      localBindPort   = 7070
-    }
-  ]
-
-  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
-  consul_datacenter = hcp_consul_cluster.main.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
-
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
-  gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
-
-  acls                      = true
-  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
-
-
-  depends_on = [module.acl-controller]
+  ])
 }
 
-resource "aws_ecs_service" "public-api" {
-  name            = "public-api"
-  cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = module.public-api.task_definition_arn
-  desired_count   = 1
+# Product API task defintion without Consul
+resource "aws_ecs_task_definition" "product_api_task" {
+  family                   = "${local.name}-product-api-task"
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
 
-  network_configuration {
-    subnets         = module.vpc.private_subnets
-    security_groups = [aws_security_group.allow_all_into_ecs.id]
+  container_definitions = jsonencode([
+    {
+    name             = "product-api"
+    image            = "hashicorpdemoapp/product-api:v0.0.22"
+    essential        = true
+    logConfiguration = local.product_api_log_config
+    environment = [
+      {
+        name  = "NAME"
+        value = "product-api"
+      },
+      {
+        name  = "DB_CONNECTION"
+        value = "host=localhost port=5432 user=postgres password=password dbname=products sslmode=disable"
+      },
+      {
+        name  = "BIND_ADDRESS"
+        value = "localhost:9090"
+      },
+      {
+        name  = "METRICS_ADDRESS"
+        value = "localhost:9103"
+      }
+    ]
+    portMappings = [
+      {
+        containerPort = 9090
+        hostPort      = 9090
+        protocol      = "tcp"
+      },
+      {
+        containerPort = 9103
+        hostPort      = 9103
+        protocol      = "tcp"
+      }
+    ]
+    mountPoints = [
+    ]
+    volumesFrom = []
+    }
+  ])
+}
+
+# Product API DB task defintion without Consul
+resource "aws_ecs_task_definition" "product_api_db_task" {
+  family                   = "${local.name}-product-api-db-task"
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+
+  container_definitions = jsonencode([
+    {
+    name             = "product-db"
+    image            = "hashicorpdemoapp/product-api-db:v0.0.22"
+    essential        = true
+    logConfiguration = local.product_api_db_log_config
+    environment = [
+      {
+        name  = "NAME"
+        value = "product-db"
+      },
+      {
+        name  = "POSTGRES_DB"
+        value = ":products"
+      },
+      {
+        name  = "POSTGRES_USER"
+        value = "postgres"
+      },
+      {
+        name  = "POSTGRES_PASSWORD"
+        value = "password"
+      }     
+    ]
+    portMappings = [
+      {
+        containerPort = 5432
+        hostPort      = 5432
+        protocol      = "tcp"
+      }
+    ]
+    mountPoints = [
+      {
+        sourceVolume = "pgdata",
+        containerPath = "/var/lib/postgresql/data"
+      }
+    ]
+    volumesFrom = []
+    }
+  ])
+  volume {
+    name      = "pgdata"
   }
-
-  launch_type            = "FARGATE"
-  propagate_tags         = "TASK_DEFINITION"
-  enable_execute_command = true
-
-  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
+# Frontend NGINX task defintion without Consul
+resource "aws_ecs_task_definition" "frontend_nginx_task" {
+  family                   = "${local.name}-frontend-nginx-task"
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+
+  container_definitions = jsonencode([
+    {
+    name             = "frontend-nginx"
+    image            = "hashicorpdemoapp/frontend-nginx:v1.0.9"
+    essential        = true
+    logConfiguration = local.frontend_nginx_log_config
+    environment = [
+      {
+        name  = "NEXT_PUBLIC_PUBLIC_API_URL"
+        value = "/"
+      }
+    ]
+    portMappings = [
+      {
+        containerPort = 80
+        protocol      = "tcp"
+      }
+    ]
+    mountPoints = []
+    volumesFrom = []
+    }
+  ])
+}
+
+# Public API task defintion without Consul
+resource "aws_ecs_task_definition" "public_api_task" {
+  family                   = "${local.name}-public-api-task"
+  network_mode             = "awsvpc"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+
+  container_definitions = jsonencode([
+    {
+    name             = "public-api"
+    image            = "hashicorpdemoapp/public-api:v0.0.6"
+    essential        = true
+    logConfiguration = local.public_api_log_config
+    portMappings = [
+      {
+        containerPort = 8080
+        protocol      = "tcp"
+      }
+    ]
+    environment = [
+      {
+        name  = "BIND_ADDRESS",
+        value = ":8080"
+      },
+      {
+        name  = "PRODUCT_API_URI"
+        value = "http://localhost:9090"
+      },
+      {
+        name  = "PAYMENT_API_URI"
+        value = "http://localhost:7070"
+      }
+    ]
+    }
+  ])
+}
+
+## AWS IAM roles and policies for ECS tasks
+
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "${local.name}-execution"
+ 
+  assume_role_policy = <<EOF
+{
+ "Version": "2012-10-17",
+ "Statement": [
+   {
+     "Action": "sts:AssumeRole",
+     "Principal": {
+       "Service": "ecs-tasks.amazonaws.com"
+     },
+     "Effect": "Allow",
+     "Sid": ""
+   }
+ ]
+}
+EOF
+}
+
+resource "aws_iam_role" "ecs_task_role" {
+  name = "${local.name}-task"
+ 
+  assume_role_policy = <<EOF
+{
+ "Version": "2012-10-17",
+ "Statement": [
+   {
+     "Action": "sts:AssumeRole",
+     "Principal": {
+       "Service": "ecs-tasks.amazonaws.com"
+     },
+     "Effect": "Allow",
+     "Sid": ""
+   }
+ ]
+}
+EOF
+}
+ 
+resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "task_s3" {
+  role       = "${aws_iam_role.ecs_task_role.name}"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
 
 resource "aws_security_group" "allow_all_into_ecs" {
   name        = "allow_ingress_into_ecs"

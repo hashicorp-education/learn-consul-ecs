@@ -14,7 +14,7 @@ resource "aws_ecs_service" "payments" {
 
 # Product API service
 resource "aws_ecs_service" "product_api" {
-  name            = "product_api"
+  name            = "product-api"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = aws_ecs_task_definition.product_api_task.arn
   desired_count   = 1
@@ -76,7 +76,7 @@ resource "aws_ecs_service" "public_api" {
 
 # Payments API task defintion without Consul
 resource "aws_ecs_task_definition" "payments_task" {
-  family                   = "payments"
+  family                   = "${local.name}-payments"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
@@ -106,7 +106,7 @@ resource "aws_ecs_task_definition" "payments_task" {
 
 # Product API task defintion without Consul
 resource "aws_ecs_task_definition" "product_api_task" {
-  family                   = "${local.name}-product_api_task"
+  family                   = "${local.name}-product-api-task"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
@@ -159,7 +159,7 @@ resource "aws_ecs_task_definition" "product_api_task" {
 
 # Product API DB task defintion without Consul
 resource "aws_ecs_task_definition" "product_api_db_task" {
-  family                   = "${local.name}-product_api_db_task"
+  family                   = "${local.name}-product-api-db-task"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
@@ -214,7 +214,7 @@ resource "aws_ecs_task_definition" "product_api_db_task" {
 
 # Frontend NGINX task defintion without Consul
 resource "aws_ecs_task_definition" "frontend_nginx_task" {
-  family                   = "${local.name}-frontend_nginx_task"
+  family                   = "${local.name}-frontend-nginx-task"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
@@ -248,7 +248,7 @@ resource "aws_ecs_task_definition" "frontend_nginx_task" {
 
 # Public API task defintion without Consul
 resource "aws_ecs_task_definition" "public_api_task" {
-  family                   = "${local.name}-public_api_task"
+  family                   = "${local.name}-public-api-task"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
