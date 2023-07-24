@@ -1,4 +1,4 @@
-# Payments API service
+# Payments API service 
 resource "aws_ecs_service" "payments" {
   name            = "payments"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
@@ -31,40 +31,6 @@ resource "aws_ecs_service" "product_db" {
   name            = "product-db"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = aws_ecs_task_definition.product_api_db_task.arn
-  desired_count   = 1
-  network_configuration {
-    subnets = module.vpc.private_subnets
-  }
-  launch_type            = "FARGATE"
-  propagate_tags         = "TASK_DEFINITION"
-  enable_execute_command = true
-}
-
-# Frontend NGINX service
-resource "aws_ecs_service" "frontend_nginx" {
-  name            = "frontend-nginx"
-  cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = aws_ecs_task_definition.frontend_nginx_task.arn
-  desired_count   = 1
-  network_configuration {
-    subnets         = module.vpc.private_subnets
-    security_groups = [aws_security_group.allow_all_into_ecs.id]
-  }
-  load_balancer {
-    target_group_arn = aws_lb_target_group.frontend-nginx.arn
-    container_name   = "frontend-nginx"
-    container_port   = 80
-  }
-  launch_type            = "FARGATE"
-  propagate_tags         = "TASK_DEFINITION"
-  enable_execute_command = true
-}
-
-# Public API service
-resource "aws_ecs_service" "public_api" {
-  name            = "public-api"
-  cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = aws_ecs_task_definition.public_api_task.arn
   desired_count   = 1
   network_configuration {
     subnets = module.vpc.private_subnets
@@ -212,82 +178,7 @@ resource "aws_ecs_task_definition" "product_api_db_task" {
   }
 }
 
-# Frontend NGINX task defintion without Consul
-resource "aws_ecs_task_definition" "frontend_nginx_task" {
-  family                   = "${local.name}-frontend-nginx-task"
-  network_mode             = "awsvpc"
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn            = aws_iam_role.ecs_task_role.arn
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
-
-  container_definitions = jsonencode([
-    {
-    name             = "frontend-nginx"
-    image            = "hashicorpdemoapp/frontend-nginx:v1.0.9"
-    essential        = true
-    logConfiguration = local.frontend_nginx_log_config
-    environment = [
-      {
-        name  = "NEXT_PUBLIC_PUBLIC_API_URL"
-        value = "/"
-      }
-    ]
-    portMappings = [
-      {
-        containerPort = 80
-        protocol      = "tcp"
-      }
-    ]
-    mountPoints = []
-    volumesFrom = []
-    }
-  ])
-}
-
-# Public API task defintion without Consul
-resource "aws_ecs_task_definition" "public_api_task" {
-  family                   = "${local.name}-public-api-task"
-  network_mode             = "awsvpc"
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn            = aws_iam_role.ecs_task_role.arn
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
-
-  container_definitions = jsonencode([
-    {
-    name             = "public-api"
-    image            = "hashicorpdemoapp/public-api:v0.0.6"
-    essential        = true
-    logConfiguration = local.public_api_log_config
-    portMappings = [
-      {
-        containerPort = 8080
-        protocol      = "tcp"
-      }
-    ]
-    environment = [
-      {
-        name  = "BIND_ADDRESS",
-        value = ":8080"
-      },
-      {
-        name  = "PRODUCT_API_URI"
-        value = "http://localhost:9090"
-      },
-      {
-        name  = "PAYMENT_API_URI"
-        value = "http://localhost:7070"
-      }
-    ]
-    }
-  ])
-}
-
 ## AWS IAM roles and policies for ECS tasks
-
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "${local.name}-execution"
  

@@ -48,6 +48,23 @@ variable "tier" {
   default     = "development"
 }
 
+
+################################################################################
+# EKS Consul
+################################################################################
+
+variable "consul_version" {
+  type        = string
+  description = "The Consul version"
+  default     = "1.16.0"
+}
+
+variable "chart_version" {
+  type        = string
+  description = "The Consul Helm chart version to use"
+  default     = "1.2.0"
+}
+
 ################################################################################
 # Other
 ################################################################################

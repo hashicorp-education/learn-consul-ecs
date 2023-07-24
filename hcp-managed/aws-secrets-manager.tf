@@ -8,6 +8,11 @@ resource "aws_secretsmanager_secret_version" "bootstrap_token" {
   secret_string = hcp_consul_cluster_root_token.token.secret_id
 }
 
+data "aws_secretsmanager_secret_version" "bootstrap_token" {
+  secret_id = aws_secretsmanager_secret.bootstrap_token.id
+  depends_on = [aws_secretsmanager_secret_version.bootstrap_token]
+}
+
 resource "aws_secretsmanager_secret" "ca_cert" {
   name                    = "${local.name}-client-ca-cert"
   recovery_window_in_days = 0

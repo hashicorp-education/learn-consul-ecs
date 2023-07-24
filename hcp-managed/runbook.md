@@ -7,29 +7,28 @@ terraform init
 terraform apply --auto-approve
 # wait 10-15 minutes for build
 
+aws eks --region $(terraform output -raw region) update-kubeconfig --name $(terraform output -raw kubernetes_cluster_id)
+
 export CONSUL_HTTP_TOKEN=$(terraform output -raw consul_root_token) && \
-export CONSUL_HTTP_ADDR=$(terraform output -raw consul_url)
+export CONSUL_HTTP_ADDR=$(terraform output -raw consul_url) && \
+export CONSUL_APIGW_ADDR=http://$(kubectl get svc/api-gateway -o json | jq -r '.status.loadBalancer.ingress[0].hostname')
 
 consul catalog services
-# notice there are no HashiCups microservices in the mesh
+# notice only half (3) of the hashicups microservices are in the mesh
 
 aws ecs list-services --region $(terraform output -raw region) --cluster $(terraform output -raw ecs_cluster_name)
-# notice the HashiCups microservices are in ECS, but not integrated with Consul
+# notice the other half (3) of the hashicups microservices are in ECS
 CTRL+C
 
-terraform output -raw hashicups_url
-# Go to the HashiCups URL and see only the frontend part of application is available
+echo $CONSUL_APIGW_ADDR
+# Go to API gateway URL and see only frontend part of application is available
 
 cp -f hashicups-ecs/ecs-services-and-tasks-with-consul.tf ecs-services-and-tasks.tf
 
 terraform apply --auto-approve
 
-aws ecs list-services --region $(terraform output -raw region) --cluster $(terraform output -raw ecs_cluster_name)
-# notice the HashiCups microservices have been modified in ECS
-CTRL+C
-
 consul catalog services
-# notice now all 5 of the HashiCups microservices are in the mesh
+# notice now all (6) of the hashicups microservices are in the mesh
 
-terraform output -raw hashicups_url
-# Go to the HashiCups URL and see the whole application works
+echo $CONSUL_APIGW_ADDR
+# Go to API gateway URL and see the whole application works
