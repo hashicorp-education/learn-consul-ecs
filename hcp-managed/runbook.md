@@ -1,8 +1,3 @@
-export HCP_CLIENT_ID=UEWyBTBey1nzMJZzo6sOcfNt31SjiaSX
-export HCP_CLIENT_SECRET=M8L8GGk_xXQjGNSnE1ZpJoMl3PN3qjIns114WDo2OhHWy1iSofVQaSz2Rmub26sc
-dr
-eval $(dm)
-
 terraform init
 terraform apply --auto-approve
 # wait 10-15 minutes for build
@@ -21,7 +16,7 @@ aws ecs list-services --region $(terraform output -raw region) --cluster $(terra
 CTRL+C
 
 echo $CONSUL_APIGW_ADDR
-# Go to API gateway URL and see only frontend part of application is available
+# Go to API gateway URL and see only the frontend part of application is available
 
 cp -f hashicups-ecs/ecs-services-and-tasks-with-consul.tf ecs-services-and-tasks.tf
 
