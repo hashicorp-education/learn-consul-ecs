@@ -20,6 +20,7 @@ echo $CONSUL_APIGW_ADDR
 
 cp -f hashicups-ecs/ecs-services-and-tasks-with-consul.tf ecs-services-and-tasks.tf
 
+terraform init
 terraform apply --auto-approve
 
 consul catalog services

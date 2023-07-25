@@ -21,7 +21,7 @@ locals {
     }
   }
 
-  payments_api_log_config = {
+  payments_log_config = {
     logDriver = "awslogs"
     options = {
       awslogs-group         = aws_cloudwatch_log_group.log_group.name

@@ -125,3 +125,9 @@ resource "kubectl_manifest" "api_gw" {
 
   depends_on = [helm_release.consul, kubectl_manifest.hashicups]
 }
+
+## Get K8S node data
+
+data "kubernetes_nodes" "node_data" {
+  depends_on  = [helm_release.consul]
+}
