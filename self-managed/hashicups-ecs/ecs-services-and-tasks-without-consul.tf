@@ -1,6 +1,6 @@
 # Payments API service
 resource "aws_ecs_service" "payments_api" {
-  name            = "payments_api"
+  name            = "payments"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = aws_ecs_task_definition.hashicups_payments_api_task.arn
   desired_count   = 1
@@ -15,7 +15,7 @@ resource "aws_ecs_service" "payments_api" {
 
 # Product API service
 resource "aws_ecs_service" "hashicups_product_api" {
-  name            = "product_api"
+  name            = "product-api"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = aws_ecs_task_definition.hashicups_product_api_task.arn
   desired_count   = 1
@@ -29,7 +29,7 @@ resource "aws_ecs_service" "hashicups_product_api" {
 
 # Product API DB service
 resource "aws_ecs_service" "hashicups_product_db" {
-  name            = "product_api_db"
+  name            = "product-db"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
   task_definition = aws_ecs_task_definition.hashicups_product_api_db_task.arn
   desired_count   = 1
@@ -41,9 +41,9 @@ resource "aws_ecs_service" "hashicups_product_db" {
   enable_execute_command = true
 }
 
-
+# Payments task defintion without Consul
 resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
-  family                   = "payments_api"
+  family                   = "${local.name}-payments"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
@@ -53,7 +53,7 @@ resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
 
   container_definitions = jsonencode([
     {
-      name      = "payments_api"
+      name      = "payments"
       image     = "hashicorpdemoapp/payments:v0.0.16"
       essential = true
       logConfiguration = local.payments_api_log_config
@@ -73,7 +73,7 @@ resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
 
 # Product API task defintion without Consul
 resource "aws_ecs_task_definition" "hashicups_product_api_task" {
-  family                   = "${var.name}-hashicups_product_api_task"
+  family                   = "${local.name}-product-api"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
@@ -128,7 +128,7 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
 
 # Product API DB task defintion without Consul
 resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
-  family                   = "${var.name}-hashicups_product_api_db_task"
+  family                   = "${local.name}-product-db"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
@@ -138,14 +138,14 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
 
   container_definitions = jsonencode([
     {
-    name             = "product-api-db"
+    name             = "product-db"
     image            = "hashicorpdemoapp/product-api-db:v0.0.22"
     essential        = true
     logConfiguration = local.product_api_db_log_config
     environment = [
       {
         name  = "NAME"
-        value = "product-api-db"
+        value = "product-db"
       },
       {
         name  = "POSTGRES_DB"
