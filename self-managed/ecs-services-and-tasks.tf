@@ -56,7 +56,7 @@ resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
       name      = "payments"
       image     = "hashicorpdemoapp/payments:v0.0.16"
       essential = true
-      logConfiguration = local.payments_api_log_config
+      logConfiguration = local.payments_log_config
 
       portMappings = [
         {
