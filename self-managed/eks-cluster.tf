@@ -88,5 +88,5 @@ resource "null_resource" "kubernetes_consul_resources" {
     when    = destroy
     command = "kubectl delete svc/consul-ui --namespace consul && kubectl delete svc/api-gateway --namespace default"
   }
-  depends_on = [module.eks]
+  depends_on = [helm_release.consul]
 }
