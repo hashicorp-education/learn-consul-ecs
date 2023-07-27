@@ -5,19 +5,11 @@ global:
   # The prefix used for all resources created in the Helm chart.
   name: consul
   # The Consul version to use.
-  image: "hashicorp/consul:1.16.0"
+  image: "hashicorp/consul:${consul_version}"
   # The name of the datacenter that the agents should register as.
   datacenter: ${datacenter}
   tls:
     enabled: false
-    verify: false
-    enableAutoEncrypt: true
-    caCert:
-      secretName: ca-cert
-      secretKey: tls.crt
-    caKey:
-      secretName: ca-key
-      secretKey: tls.key
   acls:
     manageSystemACLs: true
     bootstrapToken:

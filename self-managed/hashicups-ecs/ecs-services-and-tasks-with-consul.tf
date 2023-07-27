@@ -16,7 +16,7 @@ module "acl-controller" {
   consul_server_http_addr           = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
   consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn
 
-  depends_on = [ aws_secretsmanager_secret.bootstrap_token, aws_secretsmanager_secret.ca_cert, aws_ecs_cluster.ecs_cluster]
+  depends_on = [ aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.ecs_cluster]
 }
 
 module "payments" {
@@ -43,7 +43,7 @@ module "payments" {
       mountPoints = []
       volumesFrom = []
 
-      logConfiguration = local.payments_api_log_config
+      logConfiguration = local.payments_log_config
     }
   ]
 

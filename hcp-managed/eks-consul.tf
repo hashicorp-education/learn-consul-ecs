@@ -47,7 +47,8 @@ resource "helm_release" "consul" {
                 aws_secretsmanager_secret.bootstrap_token, 
                 aws_secretsmanager_secret.ca_cert,
                 hcp_consul_cluster.main,
-                kubernetes_secret.consul_bootstrap_token
+                kubernetes_secret.consul_bootstrap_token,
+                module.vpc
                 ]
 }
 

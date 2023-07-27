@@ -1,11 +1,11 @@
-//Consul namespace
+# Create Consul namespace
 resource "kubernetes_namespace" "consul" {
   metadata {
     name = "consul"
   }
 }
 
-//Generated Kubernetes secrets
+# Generate Consul Kubernetes secrets
 resource "kubernetes_secret" "consul_bootstrap_token" {
   metadata {
     name = "bootstrap-token"
@@ -14,39 +14,6 @@ resource "kubernetes_secret" "consul_bootstrap_token" {
 
   data = {
     token = "${data.aws_secretsmanager_secret_version.bootstrap_token.secret_string}"
-  }
-
-  depends_on = [module.eks.eks_managed_node_groups, 
-                kubernetes_namespace.consul
-               ]
-
-}
-
-resource "kubernetes_secret" "consul_ca_key" {
-  metadata {
-    name = "ca-key"
-    namespace = "consul"
-  }
-
-  data = {
-    "tls.key" = "${data.aws_secretsmanager_secret_version.ca_key.secret_string}"
-  }
-
-  depends_on = [module.eks.eks_managed_node_groups, 
-                kubernetes_namespace.consul
-               ]
-
-}
-
-resource "kubernetes_secret" "consul_ca_cert" {
-  metadata {
-    name = "ca-cert"
-    namespace = "consul"
-  }
-
-  data = {
-    "tls.crt" = "${data.aws_secretsmanager_secret_version.ca_cert.secret_string}"
-    
   }
 
   depends_on = [module.eks.eks_managed_node_groups, 
@@ -65,16 +32,27 @@ resource "helm_release" "consul" {
   values = [
     templatefile("${path.module}/consul-helm/values.tpl", {
       datacenter       = var.datacenter
-      consul_version   = substr(var.consul_version, 1, -1)
+      consul_version   = var.consul_version
     })
   ]
 
   depends_on = [module.eks.eks_managed_node_groups, 
                 kubernetes_namespace.consul, 
-                aws_secretsmanager_secret.bootstrap_token, 
-                aws_secretsmanager_secret.ca_cert, 
-                aws_secretsmanager_secret.ca_key
+                aws_secretsmanager_secret.bootstrap_token,
+                module.vpc
                 ]
+}
+
+## Create API Gateway
+data "kubectl_filename_list" "api_gw_manifests" {
+  pattern = "${path.module}/api-gw/*.yaml"
+}
+
+resource "kubectl_manifest" "api_gw" {
+  count     = length(data.kubectl_filename_list.api_gw_manifests.matches)
+  yaml_body = file(element(data.kubectl_filename_list.api_gw_manifests.matches, count.index))
+
+  depends_on = [helm_release.consul, kubectl_manifest.hashicups]
 }
 
 locals {
@@ -113,21 +91,9 @@ locals {
   }
 }
 
-## Create API Gateway
 
-data "kubectl_filename_list" "api_gw_manifests" {
-  pattern = "${path.module}/api-gw/*.yaml"
-}
-
-resource "kubectl_manifest" "api_gw" {
-  count     = length(data.kubectl_filename_list.api_gw_manifests.matches)
-  yaml_body = file(element(data.kubectl_filename_list.api_gw_manifests.matches, count.index))
-
-  depends_on = [helm_release.consul, kubectl_manifest.hashicups]
-}
-
-## Get K8S node data
-
+## Get K8S node data for Consul ECS module usage
 data "kubernetes_nodes" "node_data" {
+
   depends_on  = [helm_release.consul]
 }

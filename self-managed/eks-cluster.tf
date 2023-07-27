@@ -79,14 +79,5 @@ module "eks" {
       ipv6_cidr_blocks = ["::/0"]
     }
   }
-}
 
-# Uninstalls consul resources (API Gateway controller, Consul-UI, and AWS ELB, and removes associated AWS resources)
-# on terraform destroy
-resource "null_resource" "kubernetes_consul_resources" {
-  provisioner "local-exec" {
-    when    = destroy
-    command = "kubectl delete svc/consul-ui --namespace consul && kubectl delete svc/api-gateway --namespace default"
-  }
-  depends_on = [helm_release.consul]
 }
