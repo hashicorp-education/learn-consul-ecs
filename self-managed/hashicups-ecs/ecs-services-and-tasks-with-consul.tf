@@ -1,27 +1,64 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-module "acl-controller" {
-  source  = "hashicorp/consul-ecs/aws//modules/acl-controller"
-  version = "0.6.0"
+module "controller" {
+  source  = "hashicorp/consul-ecs/aws//modules/controller"
+  version = "0.7.0"
 
-  log_configuration = local.acl_controller_log_config
+  # Address of the Consul host
+  consul_server_hosts       = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
+
+  # The Consul HTTP port
+  http_config = {
+    port = 32500
+    https = false
+  }
+
+  # The Consul gRPC port
+  grpc_config = {
+    port = 32502
+  }
+
+  # The ARN of the AWS SecretsManager secret containing the token to be used by this controller. 
+  # The token needs to have at least `acl:write`, `node:write` and `operator:write` privileges in Consul
+  consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn  
 
   name_prefix               = local.name
   ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
   region                    = var.vpc_region
   subnets                   = module.vpc.private_subnets
   launch_type               = "FARGATE"
-
-  consul_server_http_addr           = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
-  consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn
+  log_configuration         = local.acl_controller_log_config
 
   depends_on = [ aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.ecs_cluster]
 }
 
 module "payments" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
+  version = "0.7.0"
+
+  # The name this service will be registered as in Consul.
+  consul_service_name = "payments"
+
+  # The port that this application listens on.
+  port                = 7070
+
+  # Address of the Consul server
+  consul_server_hosts = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
+
+  # Configures ACLs for the mesh-task.
+  acls              = true
+
+  # The Consul HTTP port
+  http_config = {
+    port = 32500
+    https = false
+  }
+
+  # The Consul gRPC port
+  grpc_config = {
+    port = 32502
+  }
 
   family         = "${local.name}-payments"
   cpu            = 512
@@ -47,17 +84,7 @@ module "payments" {
     }
   ]
 
-  consul_service_name = "payments"
-  port                = 7070
-
-  retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
-  consul_datacenter = var.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
-
-  acls                      = true
-  consul_http_addr          = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
-
-  depends_on = [aws_ecs_cluster.ecs_cluster]
+  depends_on = [aws_ecs_cluster.ecs_cluster, module.controller]
 }
 
 resource "aws_ecs_service" "payments" {
@@ -78,13 +105,45 @@ resource "aws_ecs_service" "payments" {
 
 module "product-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
+  version = "0.7.0"  
+
+  # The name this service will be registered as in Consul.
+  consul_service_name = "product-api"
+
+  # The port that this application listens on.
+  port                = 9090
+
+  # Address of the Consul server
+  consul_server_hosts = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
+
+  # Configures ACLs for the mesh-task.
+  acls              = true
+
+  # The Consul HTTP port
+  http_config = {
+    port = 32500
+    https = false
+  }
+
+  # The Consul gRPC port
+  grpc_config = {
+    port = 32502
+  }
+
+  # Upstream Consul services that this service will call.
+  upstreams = [
+    {
+      destinationName = "product-db"
+      localBindPort   = 5432
+    }
+  ]  
 
   family         = "${local.name}-product-api"
   cpu            = 512
   memory         = 1024
   log_configuration = local.product_api_log_config
 
+  # The ECS container definition
   container_definitions = [
     {
       name      = "product-api"
@@ -114,24 +173,7 @@ module "product-api" {
     }
   ]
 
-  upstreams = [
-    {
-      destinationName = "product-db"
-      localBindPort   = 5432
-    }
-  ]
-
-  consul_service_name = "product-api"
-  port                = 9090
-
-  retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
-  consul_datacenter = var.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
-
-  acls                      = true
-  consul_http_addr          = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
-
-  depends_on = [aws_ecs_cluster.ecs_cluster]
+  depends_on = [aws_ecs_cluster.ecs_cluster, module.controller]
 }
 
 resource "aws_ecs_service" "product-api" {
@@ -154,14 +196,37 @@ resource "aws_ecs_service" "product-api" {
 
 module "product-db" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
+  version = "0.7.0"
+
+  # The name this service will be registered as in Consul.
+  consul_service_name = "product-db"
+
+  # The port that this application listens on.
+  port                = 5432
+
+  # Address of the Consul server
+  consul_server_hosts = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
+
+  # Configures ACLs for the mesh-task.
+  acls              = true
+
+  # The Consul HTTP port
+  http_config = {
+    port = 32500
+    https = false
+  }
+  
+  # The Consul gRPC port
+  grpc_config = {
+    port = 32502
+  }
 
   family         = "${local.name}-product-db"
   cpu            = 512
   memory         = 1024
   log_configuration = local.product_api_db_log_config
 
-  
+  # The ECS container definition
   container_definitions = [
     {
       name      = "product-db"
@@ -195,17 +260,7 @@ module "product-db" {
     }
   ]
 
-  consul_service_name = "product-db"
-  port                = 5432
-
-  retry_join        = ["${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32301"]
-  consul_datacenter = var.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${var.consul_version}"
-
-  acls                      = true
-  consul_http_addr          = "http://${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}:32500"
-
-  depends_on = [aws_ecs_cluster.ecs_cluster]
+  depends_on = [aws_ecs_cluster.ecs_cluster, module.controller]
 }
 
 resource "aws_ecs_service" "product-db" {

@@ -91,7 +91,6 @@ locals {
   }
 }
 
-
 ## Get K8S node data for Consul ECS module usage
 data "kubernetes_nodes" "node_data" {
 
