@@ -6,29 +6,21 @@ module "controller" {
   version = "0.7.0"
 
   # Address of the Consul server
-  #consul_server_hosts = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
   consul_server_hosts = substr(hcp_consul_cluster.main.consul_private_endpoint_url, 8, -1)
-
-  # Configures ACLs for the mesh-task.
-  acls              = true
 
   # Configures TLS for the mesh-task.
   tls               = true
 
-  # The ARN of the Secrets Manager secret containing the Consul server CA 
-  # certificate for Consul's internal gRPC and HTTP interfaces.
-  consul_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
+  # The HCP Consul HTTP with TLS API port
+  http_config = {
+    port = 443
+    https = true
+  }
 
-  # The Consul HTTP port
-  #http_config = {
-  #  port = 32500
-  #  https = false
-  #}
-
-  # The Consul gRPC port
-  #grpc_config = {
-  #  port = 32502
-  #}
+  # The HCP Consul gRPC with TLS API port
+  grpc_config = {
+    port = 8502
+  }
 
   # The ARN of the AWS SecretsManager secret containing the token to be used by this controller. 
   # The token needs to have at least `acl:write`, `node:write` and `operator:write` privileges in Consul
@@ -56,7 +48,6 @@ module "payments" {
   port                = 7070
 
   # Address of the Consul server
-  #consul_server_hosts = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
   consul_server_hosts = substr(hcp_consul_cluster.main.consul_private_endpoint_url, 8, -1)
 
   # Configures ACLs for the mesh-task.
@@ -65,20 +56,16 @@ module "payments" {
   # Configures TLS for the mesh-task.
   tls               = true
 
-  # The ARN of the Secrets Manager secret containing the Consul server CA 
-  # certificate for Consul's internal gRPC and HTTP interfaces.
-  consul_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
+  # The HCP Consul HTTP with TLS API port
+  http_config = {
+    port = 443
+    https = true
+  }
 
-  # The Consul HTTP port
-  #http_config = {
-  #  port = 32500
-  #  https = false
-  #}
-
-  # The Consul gRPC port
-  #grpc_config = {
-  #  port = 32502
-  #}
+  # The HCP Consul gRPC with TLS API port
+  grpc_config = {
+    port = 8502
+  }
 
   family         = "${local.name}-payments"
   cpu            = 512
@@ -134,7 +121,6 @@ module "product-api" {
   port                = 9090
 
   # Address of the Consul server
-  #consul_server_hosts = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
   consul_server_hosts = substr(hcp_consul_cluster.main.consul_private_endpoint_url, 8, -1)
 
   # Configures ACLs for the mesh-task.
@@ -143,20 +129,16 @@ module "product-api" {
   # Configures TLS for the mesh-task.
   tls               = true
 
-  # The ARN of the Secrets Manager secret containing the Consul server CA 
-  # certificate for Consul's internal gRPC and HTTP interfaces.
-  consul_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
+  # The HCP Consul HTTP with TLS API port
+  http_config = {
+    port = 443
+    https = true
+  }
 
-  # The Consul HTTP port
-  #http_config = {
-  #  port = 32500
-  #  https = false
-  #}
-
-  # The Consul gRPC port
-  #grpc_config = {
-  #  port = 32502
-  #}
+  # The HCP Consul gRPC with TLS API port
+  grpc_config = {
+    port = 8502
+  }
 
   # Upstream Consul services that this service will call.
   upstreams = [
@@ -233,7 +215,6 @@ module "product-db" {
   port                = 5432
 
   # Address of the Consul server
-  #consul_server_hosts = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
   consul_server_hosts = substr(hcp_consul_cluster.main.consul_private_endpoint_url, 8, -1)
 
   # Configures ACLs for the mesh-task.
@@ -242,9 +223,16 @@ module "product-db" {
   # Configures TLS for the mesh-task.
   tls               = true
 
-  # The ARN of the Secrets Manager secret containing the Consul server CA 
-  # certificate for Consul's internal gRPC and HTTP interfaces.
-  consul_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
+  # The HCP Consul HTTP with TLS API port
+  http_config = {
+    port = 443
+    https = true
+  }
+
+  # The HCP Consul gRPC with TLS API port
+  grpc_config = {
+    port = 8502
+  }
 
   family         = "${local.name}-product-db"
   cpu            = 512

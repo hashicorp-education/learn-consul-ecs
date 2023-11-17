@@ -14,4 +14,5 @@ spec:
       backendRefs:
         - kind: Service
           name: nginx
+          namespace: default
           port: 80
