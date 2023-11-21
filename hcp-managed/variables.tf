@@ -56,13 +56,13 @@ variable "tier" {
 variable "consul_version" {
   type        = string
   description = "The Consul version"
-  default     = "1.16.0"
+  default     = "1.17.0"
 }
 
 variable "chart_version" {
   type        = string
   description = "The Consul Helm chart version to use"
-  default     = "1.2.0"
+  default     = "1.3.0"
 }
 
 ################################################################################

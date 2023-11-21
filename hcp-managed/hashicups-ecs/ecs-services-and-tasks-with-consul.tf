@@ -1,33 +1,77 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-module "acl-controller" {
-  source  = "hashicorp/consul-ecs/aws//modules/acl-controller"
-  version = "0.6.0"
+module "controller" {
+  source  = "hashicorp/consul-ecs/aws//modules/controller"
+  version = "0.7.0"
 
-  log_configuration = local.acl_controller_log_config
+  # Address of the Consul server
+  consul_server_hosts = substr(hcp_consul_cluster.main.consul_private_endpoint_url, 8, -1)
+
+  # Configures TLS for the mesh-task.
+  tls               = true
+
+  # The HCP Consul HTTP with TLS API port
+  http_config = {
+    port = 443
+    https = true
+  }
+
+  # The HCP Consul gRPC with TLS API port
+  grpc_config = {
+    port = 8502
+  }
+
+  # The ARN of the AWS SecretsManager secret containing the token to be used by this controller. 
+  # The token needs to have at least `acl:write`, `node:write` and `operator:write` privileges in Consul
+  consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn  
 
   name_prefix               = local.name
   ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
   region                    = var.vpc_region
   subnets                   = module.vpc.private_subnets
   launch_type               = "FARGATE"
-
-  consul_server_http_addr           = hcp_consul_cluster.main.consul_private_endpoint_url
-  consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn
+  log_configuration         = local.acl_controller_log_config
 
   depends_on = [aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.ecs_cluster, hcp_consul_cluster.main, module.aws_hcp_consul]
 }
 
 module "payments" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
+  version = "0.7.0"
 
-  family            = "${local.name}-payments"
-  cpu               = 512
-  memory            = 1024
+
+  # The name this service will be registered as in Consul.
+  consul_service_name = "payments"
+
+  # The port that this application listens on.
+  port                = 7070
+
+  # Address of the Consul server
+  consul_server_hosts = substr(hcp_consul_cluster.main.consul_private_endpoint_url, 8, -1)
+
+  # Configures ACLs for the mesh-task.
+  acls              = true
+
+  # Configures TLS for the mesh-task.
+  tls               = true
+
+  # The HCP Consul HTTP with TLS API port
+  http_config = {
+    port = 443
+    https = true
+  }
+
+  # The HCP Consul gRPC with TLS API port
+  grpc_config = {
+    port = 8502
+  }
+
+  family         = "${local.name}-payments"
+  cpu            = 512
+  memory         = 1024
   log_configuration = local.payments_log_config
-  
+
   container_definitions = [
     {
       name      = "payments"
@@ -47,22 +91,7 @@ module "payments" {
     }
   ]
 
-  consul_service_name = "payments"
-  port                = 7070
-
-  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
-  consul_datacenter = hcp_consul_cluster.main.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
-
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
-  gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
-
-  acls                      = true
-  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
-
-
-  depends_on = [module.acl-controller]
+  depends_on = [aws_ecs_cluster.ecs_cluster, module.controller]
 }
 
 resource "aws_ecs_service" "payments" {
@@ -79,19 +108,52 @@ resource "aws_ecs_service" "payments" {
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
-
-  depends_on = [aws_ecs_cluster.ecs_cluster]
 }
 
 module "product-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
+  version = "0.7.0"  
 
-  family            = "${local.name}-product-api"
-  cpu               = 512
-  memory            = 1024
+  # The name this service will be registered as in Consul.
+  consul_service_name = "product-api"
+
+  # The port that this application listens on.
+  port                = 9090
+
+  # Address of the Consul server
+  consul_server_hosts = substr(hcp_consul_cluster.main.consul_private_endpoint_url, 8, -1)
+
+  # Configures ACLs for the mesh-task.
+  acls              = true
+
+  # Configures TLS for the mesh-task.
+  tls               = true
+
+  # The HCP Consul HTTP with TLS API port
+  http_config = {
+    port = 443
+    https = true
+  }
+
+  # The HCP Consul gRPC with TLS API port
+  grpc_config = {
+    port = 8502
+  }
+
+  # Upstream Consul services that this service will call.
+  upstreams = [
+    {
+      destinationName = "product-db"
+      localBindPort   = 5432
+    }
+  ]  
+
+  family         = "${local.name}-product-api"
+  cpu            = 512
+  memory         = 1024
   log_configuration = local.product_api_log_config
 
+  # The ECS container definition
   container_definitions = [
     {
       name      = "product-api"
@@ -121,29 +183,7 @@ module "product-api" {
     }
   ]
 
-  upstreams = [
-    {
-      destinationName = "product-db"
-      localBindPort   = 5432
-    }
-  ]
-
-  consul_service_name = "product-api"
-  port                = 9090
-
-  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
-  consul_datacenter = hcp_consul_cluster.main.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
-
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
-  gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
-
-  acls                      = true
-  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
-
-
-  depends_on = [module.acl-controller]
+  depends_on = [aws_ecs_cluster.ecs_cluster, module.controller]
 }
 
 resource "aws_ecs_service" "product-api" {
@@ -166,13 +206,40 @@ resource "aws_ecs_service" "product-api" {
 
 module "product-db" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "~> 0.6.0"
+  version = "0.7.0"
 
-  family            = "${local.name}-product-db"
-  cpu               = 512
-  memory            = 1024
+  # The name this service will be registered as in Consul.
+  consul_service_name = "product-db"
+
+  # The port that this application listens on.
+  port                = 5432
+
+  # Address of the Consul server
+  consul_server_hosts = substr(hcp_consul_cluster.main.consul_private_endpoint_url, 8, -1)
+
+  # Configures ACLs for the mesh-task.
+  acls              = true
+
+  # Configures TLS for the mesh-task.
+  tls               = true
+
+  # The HCP Consul HTTP with TLS API port
+  http_config = {
+    port = 443
+    https = true
+  }
+
+  # The HCP Consul gRPC with TLS API port
+  grpc_config = {
+    port = 8502
+  }
+
+  family         = "${local.name}-product-db"
+  cpu            = 512
+  memory         = 1024
   log_configuration = local.product_api_db_log_config
 
+  # The ECS container definition
   container_definitions = [
     {
       name      = "product-db"
@@ -206,22 +273,7 @@ module "product-db" {
     }
   ]
 
-  consul_service_name = "product-db"
-  port                = 5432
-
-  retry_join        = jsondecode(base64decode(hcp_consul_cluster.main.consul_config_file))["retry_join"]
-  consul_datacenter = hcp_consul_cluster.main.datacenter
-  consul_image      = "public.ecr.aws/hashicorp/consul:${substr(hcp_consul_cluster.main.consul_version, 1, -1)}"
-
-  tls                       = true
-  consul_server_ca_cert_arn = aws_secretsmanager_secret.ca_cert.arn
-  gossip_key_secret_arn     = aws_secretsmanager_secret.gossip_key.arn
-
-  acls                      = true
-  consul_http_addr          = hcp_consul_cluster.main.consul_private_endpoint_url
-
-
-  depends_on = [module.acl-controller]
+  depends_on = [aws_ecs_cluster.ecs_cluster, module.controller]
 }
 
 resource "aws_ecs_service" "product-db" {

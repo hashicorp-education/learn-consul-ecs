@@ -24,10 +24,12 @@ server:
   exposeService:
     # When enabled, deploys a Kubernetes Service to reach the Consul servers.
     enabled: true
+    # Type of service, supports LoadBalancer or NodePort.
     type: NodePort
     nodePort:
       http: 32500
       serf: 32301
+      grpc: 32502
 connectInject:
   enabled: true
   apiGateway:
