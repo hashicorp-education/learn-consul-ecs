@@ -3,7 +3,7 @@
 
 module "controller" {
   source  = "hashicorp/consul-ecs/aws//modules/controller"
-  version = "0.7.0"
+  version = "0.7.3"
 
   # Address of the Consul server
   consul_server_hosts = substr(hcp_consul_cluster.main.consul_private_endpoint_url, 8, -1)
@@ -38,7 +38,7 @@ module "controller" {
 
 module "payments" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "0.7.0"
+  version = "0.7.3"
 
 
   # The name this service will be registered as in Consul.
@@ -112,7 +112,7 @@ resource "aws_ecs_service" "payments" {
 
 module "product-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "0.7.0"  
+  version = "0.7.3"  
 
   # The name this service will be registered as in Consul.
   consul_service_name = "product-api"
@@ -206,7 +206,7 @@ resource "aws_ecs_service" "product-api" {
 
 module "product-db" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "0.7.0"
+  version = "0.7.3"
 
   # The name this service will be registered as in Consul.
   consul_service_name = "product-db"
