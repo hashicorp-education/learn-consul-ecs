@@ -1,12 +1,12 @@
 # Create Consul namespace
-resource "kubernetes_namespace" "consul" {
+resource "kubernetes_namespace_v1" "consul" {
   metadata {
     name = "consul"
   }
 }
 
 # Generate Consul Kubernetes secrets
-resource "kubernetes_secret" "consul_bootstrap_token" {
+resource "kubernetes_secret_v1" "consul_bootstrap_token" {
   metadata {
     name = "bootstrap-token"
     namespace = "consul"
@@ -17,7 +17,7 @@ resource "kubernetes_secret" "consul_bootstrap_token" {
   }
 
   depends_on = [module.eks.eks_managed_node_groups, 
-                kubernetes_namespace.consul
+                kubernetes_namespace_v1.consul
                ]
 
 }
@@ -37,7 +37,7 @@ resource "helm_release" "consul" {
   ]
 
   depends_on = [module.eks.eks_managed_node_groups, 
-                kubernetes_namespace.consul, 
+                kubernetes_namespace_v1.consul, 
                 aws_secretsmanager_secret.bootstrap_token,
                 module.vpc
                 ]
