@@ -16,6 +16,6 @@ resource "aws_secretsmanager_secret_version" "bootstrap_token" {
 }
 
 data "aws_secretsmanager_secret_version" "bootstrap_token" {
-  secret_id = aws_secretsmanager_secret.bootstrap_token.id
+  secret_id  = aws_secretsmanager_secret.bootstrap_token.id
   depends_on = [aws_secretsmanager_secret_version.bootstrap_token]
 }

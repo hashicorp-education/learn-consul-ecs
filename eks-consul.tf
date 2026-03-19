@@ -8,7 +8,7 @@ resource "kubernetes_namespace_v1" "consul" {
 # Generate Consul Kubernetes secrets
 resource "kubernetes_secret_v1" "consul_bootstrap_token" {
   metadata {
-    name = "bootstrap-token"
+    name      = "bootstrap-token"
     namespace = "consul"
   }
 
@@ -16,9 +16,10 @@ resource "kubernetes_secret_v1" "consul_bootstrap_token" {
     token = "${data.aws_secretsmanager_secret_version.bootstrap_token.secret_string}"
   }
 
-  depends_on = [module.eks.eks_managed_node_groups, 
-                kubernetes_namespace_v1.consul
-               ]
+  depends_on = [
+    module.eks.eks_managed_node_groups,
+    kubernetes_namespace_v1.consul
+  ]
 
 }
 
@@ -31,16 +32,17 @@ resource "helm_release" "consul" {
 
   values = [
     templatefile("${path.module}/consul-helm/values.tpl", {
-      datacenter       = var.datacenter
-      consul_version   = var.consul_version
+      datacenter     = var.datacenter
+      consul_version = var.consul_version
     })
   ]
 
-  depends_on = [module.eks.eks_managed_node_groups, 
-                kubernetes_namespace_v1.consul, 
-                aws_secretsmanager_secret.bootstrap_token,
-                module.vpc
-                ]
+  depends_on = [
+    module.eks.eks_managed_node_groups,
+    kubernetes_namespace_v1.consul,
+    aws_secretsmanager_secret.bootstrap_token,
+    module.vpc
+  ]
 }
 
 ## Create API Gateway
@@ -94,5 +96,5 @@ locals {
 ## Get K8S node data for Consul ECS module usage
 data "kubernetes_nodes" "node_data" {
 
-  depends_on  = [helm_release.consul]
+  depends_on = [helm_release.consul]
 }

@@ -67,7 +67,7 @@ module "eks" {
       from_port   = 0
       to_port     = 0
       type        = "ingress"
-      cidr_blocks      = ["10.0.0.0/16"]
+      cidr_blocks = ["10.0.0.0/16"]
     }
     egress_all = {
       description      = "Node all egress"

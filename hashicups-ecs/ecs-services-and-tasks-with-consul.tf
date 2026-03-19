@@ -30,7 +30,7 @@ module "controller" {
   launch_type               = "FARGATE"
   log_configuration         = local.acl_controller_log_config
 
-  depends_on = [ aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.ecs_cluster]
+  depends_on = [aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.ecs_cluster]
 }
 
 module "payments" {

@@ -37,5 +37,5 @@ locals {
       awslogs-region        = var.vpc_region
       awslogs-stream-prefix = "consul-acl-controller"
     }
-  }  
+  }
 }
