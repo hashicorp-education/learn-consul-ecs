@@ -30,6 +30,7 @@ server:
       http: 32500
       serf: 32301
       grpc: 32502
+  storageClass: "gp2"
 connectInject:
   enabled: true
   apiGateway:
@@ -41,3 +42,6 @@ ui:
   service:
     enabled: true
     type: LoadBalancer
+    annotations: |
+      "service.beta.kubernetes.io/aws-load-balancer-internal": "false"
+      "service.beta.kubernetes.io/aws-load-balancer-scheme": "internet-facing"

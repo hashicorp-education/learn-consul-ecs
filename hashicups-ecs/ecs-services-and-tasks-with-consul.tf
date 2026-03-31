@@ -26,7 +26,8 @@ module "controller" {
   name_prefix               = local.name
   ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
   region                    = var.vpc_region
-  subnets                   = module.vpc.private_subnets
+  #subnets                   = module.vpc.private_subnets
+  subnets                   = module.vpc.public_subnets
   launch_type               = "FARGATE"
   log_configuration         = local.acl_controller_log_config
 
@@ -36,6 +37,7 @@ module "controller" {
 module "payments" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "0.9.3"
+  enable_transparent_proxy = false
 
   # The name this service will be registered as in Consul.
   consul_service_name = "payments"
@@ -94,7 +96,8 @@ resource "aws_ecs_service" "payments" {
   desired_count   = 1
 
   network_configuration {
-    subnets         = module.vpc.private_subnets
+    #subnets         = module.vpc.private_subnets
+    subnets         = module.vpc.public_subnets
     security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
@@ -106,6 +109,7 @@ resource "aws_ecs_service" "payments" {
 module "product-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "0.9.3"  
+  enable_transparent_proxy = false
 
   # The name this service will be registered as in Consul.
   consul_service_name = "product-api"
@@ -183,7 +187,8 @@ resource "aws_ecs_service" "product-api" {
   desired_count   = 1
 
   network_configuration {
-    subnets         = module.vpc.private_subnets
+    # subnets         = module.vpc.private_subnets
+    subnets         = module.vpc.public_subnets
     security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
@@ -197,6 +202,8 @@ resource "aws_ecs_service" "product-api" {
 module "product-db" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
   version = "0.9.3"
+
+  enable_transparent_proxy = false
 
   # The name this service will be registered as in Consul.
   consul_service_name = "product-db"
@@ -270,7 +277,8 @@ resource "aws_ecs_service" "product-db" {
   desired_count   = 1
 
   network_configuration {
-    subnets         = module.vpc.private_subnets
+    # subnets         = module.vpc.private_subnets
+    subnets         = module.vpc.public_subnets
     security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 

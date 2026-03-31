@@ -5,7 +5,8 @@ resource "aws_ecs_service" "payments_api" {
   task_definition = aws_ecs_task_definition.hashicups_payments_api_task.arn
   desired_count   = 1
   network_configuration {
-    subnets = module.vpc.private_subnets
+    #subnets = module.vpc.private_subnets
+    subnets = module.vpc.public_subnets
   }
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
@@ -20,7 +21,8 @@ resource "aws_ecs_service" "hashicups_product_api" {
   task_definition = aws_ecs_task_definition.hashicups_product_api_task.arn
   desired_count   = 1
   network_configuration {
-    subnets = module.vpc.private_subnets
+    #subnets = module.vpc.private_subnets
+    subnets = module.vpc.public_subnets
   }
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
@@ -34,7 +36,8 @@ resource "aws_ecs_service" "hashicups_product_db" {
   task_definition = aws_ecs_task_definition.hashicups_product_api_db_task.arn
   desired_count   = 1
   network_configuration {
-    subnets = module.vpc.private_subnets
+    #subnets = module.vpc.private_subnets
+    subnets = module.vpc.public_subnets
   }
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"

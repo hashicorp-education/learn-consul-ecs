@@ -5,7 +5,8 @@ resource "aws_ecs_service" "payments_api" {
   task_definition = aws_ecs_task_definition.hashicups_payments_api_task.arn
   desired_count   = 1
   network_configuration {
-    subnets = module.vpc.private_subnets
+    #subnets = module.vpc.private_subnets
+    subnets = module.vpc.public_subnets
   }
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
@@ -20,7 +21,8 @@ resource "aws_ecs_service" "hashicups_product_api" {
   task_definition = aws_ecs_task_definition.hashicups_product_api_task.arn
   desired_count   = 1
   network_configuration {
-    subnets = module.vpc.private_subnets
+    #subnets = module.vpc.private_subnets
+    subnets = module.vpc.public_subnets
   }
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
@@ -34,7 +36,8 @@ resource "aws_ecs_service" "hashicups_product_db" {
   task_definition = aws_ecs_task_definition.hashicups_product_api_db_task.arn
   desired_count   = 1
   network_configuration {
-    subnets = module.vpc.private_subnets
+    #subnets = module.vpc.private_subnets
+    subnets = module.vpc.public_subnets
   }
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
@@ -53,9 +56,9 @@ resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
 
   container_definitions = jsonencode([
     {
-      name      = "payments"
-      image     = "hashicorpdemoapp/payments:v0.0.16"
-      essential = true
+      name             = "payments"
+      image            = "hashicorpdemoapp/payments:v0.0.16"
+      essential        = true
       logConfiguration = local.payments_log_config
 
       portMappings = [
@@ -83,44 +86,44 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
 
   container_definitions = jsonencode([
     {
-    name             = "product-api"
-    image            = "hashicorpdemoapp/product-api:v0.0.22"
-    essential        = true
-    logConfiguration = local.product_api_log_config
-    environment = [
-      {
-        name  = "NAME"
-        value = "product-api"
-      },
-      {
-        name  = "DB_CONNECTION"
-        value = "host=localhost port=5432 user=postgres password=password dbname=products sslmode=disable"
-      },
-      {
-        name  = "BIND_ADDRESS"
-        value = "localhost:9090"
-      },
-      {
-        name  = "METRICS_ADDRESS"
-        value = "localhost:9103"
-      }
-    ]
-    portMappings = [
-      {
-        containerPort = 9090
-        hostPort      = 9090
-        protocol      = "tcp"
-      },
-      {
-        containerPort = 9103
-        hostPort      = 9103
-        protocol      = "tcp"
-      }
-    ]
-    memory      = 512
-    mountPoints = [
-    ]
-    volumesFrom = []
+      name             = "product-api"
+      image            = "hashicorpdemoapp/product-api:v0.0.22"
+      essential        = true
+      logConfiguration = local.product_api_log_config
+      environment = [
+        {
+          name  = "NAME"
+          value = "product-api"
+        },
+        {
+          name  = "DB_CONNECTION"
+          value = "host=localhost port=5432 user=postgres password=password dbname=products sslmode=disable"
+        },
+        {
+          name  = "BIND_ADDRESS"
+          value = "localhost:9090"
+        },
+        {
+          name  = "METRICS_ADDRESS"
+          value = "localhost:9103"
+        }
+      ]
+      portMappings = [
+        {
+          containerPort = 9090
+          hostPort      = 9090
+          protocol      = "tcp"
+        },
+        {
+          containerPort = 9103
+          hostPort      = 9103
+          protocol      = "tcp"
+        }
+      ]
+      memory = 512
+      mountPoints = [
+      ]
+      volumesFrom = []
     }
   ])
 }
@@ -138,47 +141,47 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
 
   container_definitions = jsonencode([
     {
-    name             = "product-db"
-    image            = "hashicorpdemoapp/product-api-db:v0.0.22"
-    essential        = true
-    logConfiguration = local.product_api_db_log_config
-    environment = [
-      {
-        name  = "NAME"
-        value = "product-db"
-      },
-      {
-        name  = "POSTGRES_DB"
-        value = ":products"
-      },
-      {
-        name  = "POSTGRES_USER"
-        value = "postgres"
-      },
-      {
-        name  = "POSTGRES_PASSWORD"
-        value = "password"
-      }     
-    ]
-    portMappings = [
-      {
-        containerPort = 5432
-        hostPort      = 5432
-        protocol      = "tcp"
-      }
-    ]
-    memory      = 512
-    mountPoints = [
-      {
-        sourceVolume = "pgdata",
-        containerPath = "/var/lib/postgresql/data"
-      }
-    ]
-    volumesFrom = []
+      name             = "product-db"
+      image            = "hashicorpdemoapp/product-api-db:v0.0.22"
+      essential        = true
+      logConfiguration = local.product_api_db_log_config
+      environment = [
+        {
+          name  = "NAME"
+          value = "product-db"
+        },
+        {
+          name  = "POSTGRES_DB"
+          value = ":products"
+        },
+        {
+          name  = "POSTGRES_USER"
+          value = "postgres"
+        },
+        {
+          name  = "POSTGRES_PASSWORD"
+          value = "password"
+        }
+      ]
+      portMappings = [
+        {
+          containerPort = 5432
+          hostPort      = 5432
+          protocol      = "tcp"
+        }
+      ]
+      memory = 512
+      mountPoints = [
+        {
+          sourceVolume  = "pgdata",
+          containerPath = "/var/lib/postgresql/data"
+        }
+      ]
+      volumesFrom = []
     }
   ])
   volume {
-    name      = "pgdata"
+    name = "pgdata"
   }
 }
 
@@ -186,7 +189,7 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
 
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "${local.name}-execution"
- 
+
   assume_role_policy = <<EOF
 {
  "Version": "2012-10-17",
@@ -206,7 +209,7 @@ EOF
 
 resource "aws_iam_role" "ecs_task_role" {
   name = "${local.name}-task"
- 
+
   assume_role_policy = <<EOF
 {
  "Version": "2012-10-17",
@@ -223,13 +226,13 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 EOF
 }
- 
+
 resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
 resource "aws_iam_role_policy_attachment" "task_s3" {
-  role       = "${aws_iam_role.ecs_task_role.name}"
+  role       = aws_iam_role.ecs_task_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }

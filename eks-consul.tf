@@ -1,26 +1,32 @@
-# Create Consul namespace
-resource "kubernetes_namespace_v1" "consul" {
-  metadata {
-    name = "consul"
-  }
+resource "kubectl_manifest" "consul_namespace" {
+    yaml_body = <<YAML
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: consul
+YAML
+
+  depends_on = [
+    module.eks.eks_managed_node_groups
+  ]
 }
 
-# Generate Consul Kubernetes secrets
-resource "kubernetes_secret_v1" "consul_bootstrap_token" {
-  metadata {
-    name      = "bootstrap-token"
-    namespace = "consul"
-  }
-
-  data = {
-    token = "${data.aws_secretsmanager_secret_version.bootstrap_token.secret_string}"
-  }
+resource "kubectl_manifest" "consul_bootstrap_token" {
+  yaml_body = <<YAML
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bootstrap-token
+  namespace: consul
+type: Opaque
+data:
+  token: ${base64encode(nonsensitive(data.aws_secretsmanager_secret_version.bootstrap_token.secret_string))}
+YAML
 
   depends_on = [
     module.eks.eks_managed_node_groups,
-    kubernetes_namespace_v1.consul
+    aws_secretsmanager_secret.bootstrap_token
   ]
-
 }
 
 resource "helm_release" "consul" {
@@ -39,9 +45,11 @@ resource "helm_release" "consul" {
 
   depends_on = [
     module.eks.eks_managed_node_groups,
-    kubernetes_namespace_v1.consul,
     aws_secretsmanager_secret.bootstrap_token,
-    module.vpc
+    module.vpc,
+    kubectl_manifest.consul_namespace,
+    kubectl_manifest.consul_bootstrap_token
+    #aws_eks_addon.ebs_csi
   ]
 }
 
