@@ -4,6 +4,9 @@ kind: Gateway
 metadata:
   name: api-gateway
   namespace: default
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-internal: "false"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
 spec:
   gatewayClassName: consul
   listeners:

@@ -37,6 +37,14 @@ connectInject:
     manageExternalCRDs: true
     managedGatewayClass:
       serviceType: LoadBalancer
+      copyAnnotations:
+        service:
+          annotations: |
+            - service.beta.kubernetes.io/aws-load-balancer-name
+            - service.beta.kubernetes.io/aws-load-balancer-type
+            - service.beta.kubernetes.io/aws-load-balancer-nlb-target-type
+            - service.beta.kubernetes.io/aws-load-balancer-internal
+            - service.beta.kubernetes.io/aws-load-balancer-scheme
 ui:
   enabled: true
   service:
