@@ -12,8 +12,6 @@ data "aws_region" "current" {}
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  #version = "19.21.0"
-  #version = "21.15.1"
   version = "~> 21.0"
 
   name = local.name
@@ -33,7 +31,6 @@ module "eks" {
 
   addons = {
     aws-ebs-csi-driver = {
-      #service_account_role_arn = module.ebs_csi_driver_irsa.iam_role_arn
       service_account_role_arn =  module.ebs_csi_driver_irsa.arn
     }
     coredns            = {}
@@ -58,7 +55,6 @@ module "eks" {
       # Starting on 1.30, AL2023 is the default AMI type for EKS managed node groups
       ami_type       = "AL2023_x86_64_STANDARD"
       instance_types = ["m5.xlarge"]
-      #instance_types = ["t3a.medium"]
       use_custom_launch_template = false
 
       iam_role_additional_policies = {
@@ -128,134 +124,4 @@ module "ebs_csi_driver_irsa" {
       namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
     }
   }
-
-  /*
-  version = "~> 5.20"
-
-  # create_role      = false
-  role_name_prefix = "${module.eks.cluster_name}-ebs-csi-driver-"
-
-  attach_ebs_csi_policy = true
-
-  oidc_providers = {
-    main = {
-      provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
-    }
-  }
-  */
 }
-
-# VPC CNI Add-on
-#resource "aws_eks_addon" "vpc_cni" {
-#  cluster_name = local.name
-#  addon_name   = "vpc-cni"
-#  depends_on = [
-#    module.eks
-#  ]
-#  tags = {
-#    Name = "vpc-cni"
-#  }
-#}
-
-# CoreDNS Add-on
-#resource "aws_eks_addon" "coredns" {
-#  cluster_name = local.name
-#  addon_name   = "coredns"
-#  depends_on = [
-#    module.eks
-#  ]
-#  tags = {
-#    Name = "coredns"
-#  }
-#}
-
-# kube-proxy Add-on
-#resource "aws_eks_addon" "kube_proxy" {
-#  cluster_name = local.name
-#  addon_name   = "kube-proxy"
-#  depends_on = [
-#    module.eks
-#  ]
-#  tags = {
-#    Name = "kube-proxy"
-#  }
-#}
-
-#resource "aws_eks_addon" "ebs_csi" {
-#  cluster_name = local.name
-#  addon_name   = "aws-ebs-csi-driver"
-#  addon_version            = "v1.57.1-eksbuild.1"
-#  configuration_values = jsonencode({
-#    replicaCount = 4
-#    resources = {
-#      limits = {
-#        cpu    = "100m"
-#        memory = "150Mi"
-#      }
-#      requests = {
-#        cpu    = "100m"
-#        memory = "150Mi"
-#      }
-#    }
-#  })
-#
-#  depends_on = [
-#    module.eks
-#  ]
-#  tags = {
-#    Name = "aws-ebs-csi-driver"
-#  }
-#}
-
-// ### New
-
-# EKS addon
-#resource "aws_eks_addon" "ebs_csi_driver" {
-#  cluster_name             = module.eks.cluster_name
-#  addon_name               = "aws-ebs-csi-driver"
-#  addon_version            = "v1.57.1-eksbuild.1"
-#  service_account_role_arn = aws_iam_role.ebs_csi_driver.arn
-#}
-
-# IAM
-#resource "aws_iam_role" "ebs_csi_driver" {
-#  name               = "ebs-csi-driver"
-#  assume_role_policy = data.aws_iam_policy_document.ebs_csi_driver_assume_role.json
-#}
-
-#data "aws_iam_policy_document" "ebs_csi_driver_assume_role" {
-#  statement {
-#    effect = "Allow"
-#  
-#    principals {
-#      type        = "Federated"
-#      #identifiers = [aws_iam_openid_connect_provider.eks.arn]
-#      identifiers = module.eks.oidc_provider_arn
-#    }
-#
-#    actions = [
-#      "sts:AssumeRoleWithWebIdentity",
-#    ]
-#
-#    condition {
-#      test     = "StringEquals"
-#      #variable = "${aws_iam_openid_connect_provider.eks.url}:aud"
-#      variable = "${module.eks.oidc_provider}:aud"
-#      values   = ["sts.amazonaws.com"]
-#    }
-#
-#    condition {
-#      test     = "StringEquals"
-#      #variable = "${aws_iam_openid_connect_provider.eks.url}:sub"
-#      variable = "${module.eks.oidc_provider}:sub"
-#      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
-#    }
-#
-#  }
-#}
-#
-#resource "aws_iam_role_policy_attachment" "AmazonEBSCSIDriverPolicy" {
-#  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-#  role       = aws_iam_role.ebs_csi_driver.name
-#}

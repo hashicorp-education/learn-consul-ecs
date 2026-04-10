@@ -26,10 +26,9 @@ module "controller" {
   name_prefix               = local.name
   ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
   region                    = var.vpc_region
-  #subnets                   = module.vpc.private_subnets
   subnets                   = module.vpc.public_subnets
   launch_type               = "FARGATE"
-  log_configuration         = local.acl_controller_log_config
+  #log_configuration         = local.acl_controller_log_config
 
   depends_on = [aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.ecs_cluster]
 }
@@ -65,7 +64,7 @@ module "payments" {
   family         = "${local.name}-payments"
   cpu            = 512
   memory         = 1024
-  log_configuration = local.payments_log_config
+  #log_configuration = local.payments_log_config
 
   container_definitions = [
     {
@@ -82,7 +81,7 @@ module "payments" {
       mountPoints = []
       volumesFrom = []
 
-      logConfiguration = local.payments_log_config
+      #logConfiguration = local.payments_log_config
     }
   ]
 
@@ -145,7 +144,7 @@ module "product-api" {
   family         = "${local.name}-product-api"
   cpu            = 512
   memory         = 1024
-  log_configuration = local.product_api_log_config
+  #log_configuration = local.product_api_log_config
 
   # The ECS container definition
   container_definitions = [
@@ -173,7 +172,7 @@ module "product-api" {
       mountPoints = []
       volumesFrom = []
 
-      logConfiguration = local.product_api_log_config
+      #logConfiguration = local.product_api_log_config
     }
   ]
 
@@ -231,7 +230,7 @@ module "product-db" {
   family         = "${local.name}-product-db"
   cpu            = 512
   memory         = 1024
-  log_configuration = local.product_api_db_log_config
+  #log_configuration = local.product_api_db_log_config
 
   # The ECS container definition
   container_definitions = [
@@ -263,7 +262,7 @@ module "product-db" {
       mountPoints = []
       volumesFrom = []
 
-      logConfiguration = local.product_api_db_log_config
+      #logConfiguration = local.product_api_db_log_config
     }
   ]
 
@@ -309,4 +308,80 @@ resource "aws_security_group" "allow_all_into_ecs" {
     cidr_blocks      = ["0.0.0.0/0"]
   }
 
+}
+
+## AWS IAM roles and policies for ECS tasks
+
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "${local.name}-execution"
+ 
+  assume_role_policy = <<EOF
+{
+ "Version": "2012-10-17",
+ "Statement": [
+   {
+     "Action": "sts:AssumeRole",
+     "Principal": {
+       "Service": "ecs-tasks.amazonaws.com"
+     },
+     "Effect": "Allow",
+     "Sid": ""
+   }
+ ]
+}
+EOF
+}
+
+resource "aws_iam_role" "ecs_task_role" {
+  name = "${local.name}-task"
+ 
+  assume_role_policy = <<EOF
+{
+ "Version": "2012-10-17",
+ "Statement": [
+   {
+     "Action": "sts:AssumeRole",
+     "Principal": {
+       "Service": "ecs-tasks.amazonaws.com"
+     },
+     "Effect": "Allow",
+     "Sid": ""
+   }
+ ]
+}
+EOF
+}
+ 
+resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "task_s3" {
+  role       = "${aws_iam_role.ecs_task_role.name}"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+
+# Terraform - Execution role policy for Secrets Manager access
+resource "aws_iam_role_policy" "secrets_access" {
+  name = "secrets-manager-access"
+  #role = aws_iam_role.ecs_task_execution_role.id
+  #role = module.product-api.execution_role_id
+  role = aws_iam_role.ecs_task_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:us-east-1:123456789:secret:production/*"
+        ]
+      }
+    ]
+  })
 }

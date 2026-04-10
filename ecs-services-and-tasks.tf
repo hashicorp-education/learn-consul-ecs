@@ -5,8 +5,8 @@ resource "aws_ecs_service" "payments_api" {
   task_definition = aws_ecs_task_definition.hashicups_payments_api_task.arn
   desired_count   = 1
   network_configuration {
-    #subnets = module.vpc.private_subnets
     subnets = module.vpc.public_subnets
+    assign_public_ip = true
   }
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
@@ -21,8 +21,8 @@ resource "aws_ecs_service" "hashicups_product_api" {
   task_definition = aws_ecs_task_definition.hashicups_product_api_task.arn
   desired_count   = 1
   network_configuration {
-    #subnets = module.vpc.private_subnets
     subnets = module.vpc.public_subnets
+    assign_public_ip = true
   }
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
@@ -36,8 +36,8 @@ resource "aws_ecs_service" "hashicups_product_db" {
   task_definition = aws_ecs_task_definition.hashicups_product_api_db_task.arn
   desired_count   = 1
   network_configuration {
-    #subnets = module.vpc.private_subnets
     subnets = module.vpc.public_subnets
+    assign_public_ip = true
   }
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
@@ -59,7 +59,6 @@ resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
       name             = "payments"
       image            = "hashicorpdemoapp/payments:v0.0.16"
       essential        = true
-      logConfiguration = local.payments_log_config
 
       portMappings = [
         {
@@ -89,7 +88,6 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
       name             = "product-api"
       image            = "hashicorpdemoapp/product-api:v0.0.22"
       essential        = true
-      logConfiguration = local.product_api_log_config
       environment = [
         {
           name  = "NAME"
@@ -144,7 +142,6 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
       name             = "product-db"
       image            = "hashicorpdemoapp/product-api-db:v0.0.22"
       essential        = true
-      logConfiguration = local.product_api_db_log_config
       environment = [
         {
           name  = "NAME"
@@ -152,7 +149,7 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
         },
         {
           name  = "POSTGRES_DB"
-          value = ":products"
+          value = "products"
         },
         {
           name  = "POSTGRES_USER"
@@ -226,10 +223,14 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 EOF
 }
-
+ 
 resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
+  for_each = toset([
+    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+    "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+  ])
   role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+  policy_arn = each.value
 }
 
 resource "aws_iam_role_policy_attachment" "task_s3" {

@@ -49,7 +49,6 @@ resource "helm_release" "consul" {
     module.vpc,
     kubectl_manifest.consul_namespace,
     kubectl_manifest.consul_bootstrap_token
-    #aws_eks_addon.ebs_csi
   ]
 }
 
