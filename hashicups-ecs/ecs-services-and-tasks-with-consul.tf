@@ -97,6 +97,7 @@ resource "aws_ecs_service" "payments" {
   network_configuration {
     #subnets         = module.vpc.private_subnets
     subnets         = module.vpc.public_subnets
+    assign_public_ip = true
     security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
@@ -188,6 +189,7 @@ resource "aws_ecs_service" "product-api" {
   network_configuration {
     # subnets         = module.vpc.private_subnets
     subnets         = module.vpc.public_subnets
+    assign_public_ip = true
     security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
@@ -278,6 +280,7 @@ resource "aws_ecs_service" "product-db" {
   network_configuration {
     # subnets         = module.vpc.private_subnets
     subnets         = module.vpc.public_subnets
+    assign_public_ip = true
     security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
 
@@ -351,18 +354,22 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 EOF
 }
- 
+
 resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
+  for_each = toset([
+    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+    "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+  ])
   role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+  policy_arn = each.value
 }
 
 resource "aws_iam_role_policy_attachment" "task_s3" {
-  role       = "${aws_iam_role.ecs_task_role.name}"
+  role       = aws_iam_role.ecs_task_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
-
+/*
 # Terraform - Execution role policy for Secrets Manager access
 resource "aws_iam_role_policy" "secrets_access" {
   name = "secrets-manager-access"
@@ -385,3 +392,4 @@ resource "aws_iam_role_policy" "secrets_access" {
     ]
   })
 }
+*/
