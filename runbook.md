@@ -13,7 +13,6 @@ consul catalog services
 
 aws ecs list-services --region $(terraform output -raw region) --cluster $(terraform output -raw ecs_cluster_name)
 # notice the other half (3) of the hashicups microservices are in ECS
-CTRL+C
 
 echo $CONSUL_APIGW_ADDR
 # Go to API gateway URL and see only frontend part of application is available
@@ -28,3 +27,6 @@ consul catalog services
 
 echo $CONSUL_APIGW_ADDR
 # Go to API gateway URL and see the whole application works
+
+terraform destroy --auto-approve
+# Clean up deployment
