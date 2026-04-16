@@ -3,68 +3,55 @@
 
 module "controller" {
   source  = "hashicorp/consul-ecs/aws//modules/controller"
-  version = "0.9.3"
-
-  # Address of the Consul host
+  version = "0.9.4"
+  consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn  
   consul_server_hosts       = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
+  ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
+  name_prefix               = local.name
+  region                    = var.vpc_region
+  subnets                   = module.vpc.public_subnets
+  assign_public_ip          = true
+  launch_type               = "FARGATE"
+  tls                       = false
+  #log_configuration         = local.acl_controller_log_config
 
-  # The Consul HTTP port
   http_config = {
     port = 32500
     https = false
   }
 
-  # The Consul gRPC port
   grpc_config = {
     port = 32502
   }
 
-  # The ARN of the AWS SecretsManager secret containing the token to be used by this controller. 
-  # The token needs to have at least `acl:write`, `node:write` and `operator:write` privileges in Consul
-  consul_bootstrap_token_secret_arn = aws_secretsmanager_secret.bootstrap_token.arn  
-
-  name_prefix               = local.name
-  ecs_cluster_arn           = aws_ecs_cluster.ecs_cluster.arn
-  region                    = var.vpc_region
-  subnets                   = module.vpc.public_subnets
-  launch_type               = "FARGATE"
-  #log_configuration         = local.acl_controller_log_config
-
-  depends_on = [aws_secretsmanager_secret.bootstrap_token, aws_ecs_cluster.ecs_cluster]
+  depends_on = [
+    aws_secretsmanager_secret.bootstrap_token,
+    aws_ecs_cluster.ecs_cluster
+  ]
 }
 
 module "payments" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "0.9.3"
-  enable_transparent_proxy = false
-
-  # The name this service will be registered as in Consul.
+  version = "0.9.4"
+  consul_server_hosts = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
+  family         = "${local.name}-payments"
+  acls              = true
   consul_service_name = "payments"
-
-  # The port that this application listens on.
+  cpu            = 512
+  enable_consul_dns = false
+  enable_transparent_proxy = false
+  log_configuration = local.payments_log_config
+  memory         = 1024
   port                = 7070
 
-  # Address of the Consul server
-  consul_server_hosts = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
-
-  # Configures ACLs for the mesh-task.
-  acls              = true
-
-  # The Consul HTTP port
   http_config = {
     port = 32500
     https = false
   }
 
-  # The Consul gRPC port
   grpc_config = {
     port = 32502
   }
-
-  family         = "${local.name}-payments"
-  cpu            = 512
-  memory         = 1024
-  #log_configuration = local.payments_log_config
 
   container_definitions = [
     {
@@ -77,15 +64,16 @@ module "payments" {
           protocol      = "tcp"
         }
       ]
-
       mountPoints = []
       volumesFrom = []
-
-      #logConfiguration = local.payments_log_config
+      logConfiguration = local.payments_log_config
     }
   ]
 
-  depends_on = [aws_ecs_cluster.ecs_cluster, module.controller]
+  depends_on = [
+    aws_ecs_cluster.ecs_cluster,
+    module.controller
+  ]
 }
 
 resource "aws_ecs_service" "payments" {
@@ -95,7 +83,6 @@ resource "aws_ecs_service" "payments" {
   desired_count   = 1
 
   network_configuration {
-    #subnets         = module.vpc.private_subnets
     subnets         = module.vpc.public_subnets
     assign_public_ip = true
     security_groups = [aws_security_group.allow_all_into_ecs.id]
@@ -108,33 +95,27 @@ resource "aws_ecs_service" "payments" {
 
 module "product-api" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "0.9.3"  
-  enable_transparent_proxy = false
-
-  # The name this service will be registered as in Consul.
+  version = "0.9.4"
+  consul_server_hosts = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
+  family         = "${local.name}-product-api"
+  acls              = true
   consul_service_name = "product-api"
-
-  # The port that this application listens on.
+  cpu            = 512
+  enable_consul_dns = false
+  enable_transparent_proxy = false
+  log_configuration = local.product_api_log_config
+  memory         = 1024
   port                = 9090
 
-  # Address of the Consul server
-  consul_server_hosts = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
-
-  # Configures ACLs for the mesh-task.
-  acls              = true
-
-  # The Consul HTTP port
   http_config = {
     port = 32500
     https = false
   }
 
-  # The Consul gRPC port
   grpc_config = {
     port = 32502
   }
 
-  # Upstream Consul services that this service will call.
   upstreams = [
     {
       destinationName = "product-db"
@@ -142,12 +123,6 @@ module "product-api" {
     }
   ]  
 
-  family         = "${local.name}-product-api"
-  cpu            = 512
-  memory         = 1024
-  #log_configuration = local.product_api_log_config
-
-  # The ECS container definition
   container_definitions = [
     {
       name      = "product-api"
@@ -172,12 +147,14 @@ module "product-api" {
       ]
       mountPoints = []
       volumesFrom = []
-
-      #logConfiguration = local.product_api_log_config
+      logConfiguration = local.product_api_log_config
     }
   ]
 
-  depends_on = [aws_ecs_cluster.ecs_cluster, module.controller]
+  depends_on = [
+    aws_ecs_cluster.ecs_cluster,
+    module.controller
+  ]
 }
 
 resource "aws_ecs_service" "product-api" {
@@ -187,7 +164,6 @@ resource "aws_ecs_service" "product-api" {
   desired_count   = 1
 
   network_configuration {
-    # subnets         = module.vpc.private_subnets
     subnets         = module.vpc.public_subnets
     assign_public_ip = true
     security_groups = [aws_security_group.allow_all_into_ecs.id]
@@ -202,39 +178,27 @@ resource "aws_ecs_service" "product-api" {
 
 module "product-db" {
   source  = "hashicorp/consul-ecs/aws//modules/mesh-task"
-  version = "0.9.3"
-
-  enable_transparent_proxy = false
-
-  # The name this service will be registered as in Consul.
+  version = "0.9.4"
+  consul_server_hosts = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
+  family         = "${local.name}-product-db"
+  acls              = true
   consul_service_name = "product-db"
-
-  # The port that this application listens on.
+  cpu            = 512
+  enable_consul_dns = false
+  enable_transparent_proxy = false
+  log_configuration = local.product_api_db_log_config
+  memory         = 1024
   port                = 5432
 
-  # Address of the Consul server
-  consul_server_hosts = "${data.kubernetes_nodes.node_data.nodes.0.metadata.0.name}"
-
-  # Configures ACLs for the mesh-task.
-  acls              = true
-
-  # The Consul HTTP port
   http_config = {
     port = 32500
     https = false
   }
-  
-  # The Consul gRPC port
+
   grpc_config = {
     port = 32502
   }
 
-  family         = "${local.name}-product-db"
-  cpu            = 512
-  memory         = 1024
-  #log_configuration = local.product_api_db_log_config
-
-  # The ECS container definition
   container_definitions = [
     {
       name      = "product-db"
@@ -263,12 +227,14 @@ module "product-db" {
       ]
       mountPoints = []
       volumesFrom = []
-
-      #logConfiguration = local.product_api_db_log_config
+      logConfiguration = local.product_api_db_log_config
     }
   ]
 
-  depends_on = [aws_ecs_cluster.ecs_cluster, module.controller]
+  depends_on = [
+    aws_ecs_cluster.ecs_cluster,
+    module.controller
+  ]
 }
 
 resource "aws_ecs_service" "product-db" {
@@ -278,7 +244,6 @@ resource "aws_ecs_service" "product-db" {
   desired_count   = 1
 
   network_configuration {
-    # subnets         = module.vpc.private_subnets
     subnets         = module.vpc.public_subnets
     assign_public_ip = true
     security_groups = [aws_security_group.allow_all_into_ecs.id]
@@ -358,24 +323,17 @@ EOF
 resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attachment" {
   for_each = toset([
     "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
-    "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+    "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess",
+    "arn:aws:iam::aws:policy/AmazonS3FullAccess"
   ])
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = each.value
 }
 
-resource "aws_iam_role_policy_attachment" "task_s3" {
-  role       = aws_iam_role.ecs_task_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-}
-
-/*
 # Terraform - Execution role policy for Secrets Manager access
 resource "aws_iam_role_policy" "secrets_access" {
   name = "secrets-manager-access"
-  #role = aws_iam_role.ecs_task_execution_role.id
-  #role = module.product-api.execution_role_id
-  role = aws_iam_role.ecs_task_execution_role.id
+  role = aws_iam_role.ecs_task_execution_role.name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -386,10 +344,9 @@ resource "aws_iam_role_policy" "secrets_access" {
           "secretsmanager:GetSecretValue"
         ]
         Resource = [
-          "arn:aws:secretsmanager:us-east-1:123456789:secret:production/*"
+          "arn:aws:secretsmanager:${var.vpc_region}:${data.aws_caller_identity.this.account_id}:secret:*"
         ]
       }
     ]
   })
 }
-*/

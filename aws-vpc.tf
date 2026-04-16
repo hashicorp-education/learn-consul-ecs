@@ -52,3 +52,24 @@ resource "aws_security_group_rule" "allow_all_outbound" {
   cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = data.aws_security_group.vpc_default.id
 }
+
+resource "aws_security_group_rule" "allow_https_inbound" {
+  type              = "ingress"
+  from_port         = 443
+  to_port           = 443
+  protocol          = "tcp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = data.aws_security_group.vpc_default.id
+}
+
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id       = module.vpc.vpc_id
+  service_name = "com.amazonaws.${var.vpc_region}.secretsmanager"
+  vpc_endpoint_type = "Interface"
+  subnet_ids = [module.vpc.public_subnets[0], module.vpc.public_subnets[1], module.vpc.public_subnets[2]]
+  security_group_ids = [
+    data.aws_security_group.vpc_default.id,
+  ]
+
+  private_dns_enabled = true
+}

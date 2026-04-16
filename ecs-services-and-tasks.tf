@@ -2,12 +2,15 @@
 resource "aws_ecs_service" "payments_api" {
   name            = "payments"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = aws_ecs_task_definition.hashicups_payments_api_task.arn
+  task_definition = aws_ecs_task_definition.payments_api_task.arn
   desired_count   = 1
+
   network_configuration {
     subnets = module.vpc.public_subnets
     assign_public_ip = true
+    security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
+
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
@@ -15,37 +18,43 @@ resource "aws_ecs_service" "payments_api" {
 
 
 # Product API service
-resource "aws_ecs_service" "hashicups_product_api" {
+resource "aws_ecs_service" "product_api" {
   name            = "product-api"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = aws_ecs_task_definition.hashicups_product_api_task.arn
+  task_definition = aws_ecs_task_definition.product_api_task.arn
   desired_count   = 1
+
   network_configuration {
     subnets = module.vpc.public_subnets
     assign_public_ip = true
+    security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
+
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
 }
 
 # Product API DB service
-resource "aws_ecs_service" "hashicups_product_db" {
+resource "aws_ecs_service" "product_db" {
   name            = "product-db"
   cluster         = aws_ecs_cluster.ecs_cluster.arn
-  task_definition = aws_ecs_task_definition.hashicups_product_api_db_task.arn
+  task_definition = aws_ecs_task_definition.product_api_db_task.arn
   desired_count   = 1
+  
   network_configuration {
     subnets = module.vpc.public_subnets
     assign_public_ip = true
+    security_groups = [aws_security_group.allow_all_into_ecs.id]
   }
+
   launch_type            = "FARGATE"
   propagate_tags         = "TASK_DEFINITION"
   enable_execute_command = true
 }
 
 # Payments task defintion without Consul
-resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
+resource "aws_ecs_task_definition" "payments_api_task" {
   family                   = "${local.name}-payments"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
@@ -59,14 +68,13 @@ resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
       name             = "payments"
       image            = "hashicorpdemoapp/payments:v0.0.16"
       essential        = true
-
+      memory = 512
       portMappings = [
         {
           containerPort = 8080
           protocol      = "tcp"
         }
       ]
-
       mountPoints = []
       volumesFrom = []
     }
@@ -74,7 +82,7 @@ resource "aws_ecs_task_definition" "hashicups_payments_api_task" {
 }
 
 # Product API task defintion without Consul
-resource "aws_ecs_task_definition" "hashicups_product_api_task" {
+resource "aws_ecs_task_definition" "product_api_task" {
   family                   = "${local.name}-product-api"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
@@ -88,6 +96,7 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
       name             = "product-api"
       image            = "hashicorpdemoapp/product-api:v0.0.22"
       essential        = true
+      memory = 512
       environment = [
         {
           name  = "NAME"
@@ -118,9 +127,7 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
           protocol      = "tcp"
         }
       ]
-      memory = 512
-      mountPoints = [
-      ]
+      mountPoints = []
       volumesFrom = []
     }
   ])
@@ -128,7 +135,7 @@ resource "aws_ecs_task_definition" "hashicups_product_api_task" {
 
 
 # Product API DB task defintion without Consul
-resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
+resource "aws_ecs_task_definition" "product_api_db_task" {
   family                   = "${local.name}-product-db"
   network_mode             = "awsvpc"
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
@@ -142,6 +149,7 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
       name             = "product-db"
       image            = "hashicorpdemoapp/product-api-db:v0.0.22"
       essential        = true
+      memory = 512
       environment = [
         {
           name  = "NAME"
@@ -167,7 +175,6 @@ resource "aws_ecs_task_definition" "hashicups_product_api_db_task" {
           protocol      = "tcp"
         }
       ]
-      memory = 512
       mountPoints = [
         {
           sourceVolume  = "pgdata",
@@ -236,4 +243,26 @@ resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attach
 resource "aws_iam_role_policy_attachment" "task_s3" {
   role       = aws_iam_role.ecs_task_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+resource "aws_security_group" "allow_all_into_ecs" {
+  name        = "allow_ingress_into_ecs"
+  description = "Allow all inbound traffic into ECS"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description      = "all in from VPC"
+    from_port        = 0
+    to_port          = 65535
+    protocol         = "tcp"
+    cidr_blocks      = ["10.0.0.0/16"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
 }
